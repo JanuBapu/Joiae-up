@@ -288,12 +288,13 @@ async def drm_handler(bot: Client, m: Message):
                signed = r.json().get("signed_url")
                # Output variables
                url = None
-               mpd = None
+               
                keys_string = ""
                if signed and "drm" in signed.lower():
     # DRM case: extract directly from response
                  url = data.get("mpd")
                  keys = data.get("keys", [])
+                 url = mpd
                  keys_string = " ".join([f"--key {key}" for key in keys])
 
                else:
