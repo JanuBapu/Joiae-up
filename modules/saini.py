@@ -232,41 +232,35 @@ def time_name():
     current_time = now.strftime("%H%M%S")
     return f"{date} {current_time}.mp4"
 
-
 async def download_video(url, cmd, name):
     global failed_counter
 
-    # Step 1: Build final command
-    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32" "{url}" -o "{name}"'
+    if "appx.co.in" in url:
+        cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
+
+    output_file = f"{name}.mkv"
+    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32" "{url}" -o "{output_file}"'
     print(download_cmd)
     logging.info(download_cmd)
 
-    # Step 2: Run command
     k = subprocess.run(download_cmd, shell=True)
 
-    # Step 3: Retry logic (NO headers param here!)
     if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
         failed_counter += 1
         await asyncio.sleep(5)
-        await download_video(url, cmd, name)  # ✅ FIXED: removed headers param
+        await download_video(url, cmd, name)
         return
 
-    # Step 4: Check downloaded file
     failed_counter = 0
     try:
-        if os.path.isfile(name):
-            return name
-        elif os.path.isfile(f"{name}.webm"):
-            return f"{name}.webm"
-        base = os.path.splitext(name)[0]
-        for ext in [".mkv", ".mp4", ".mp4.webm"]:
-            if os.path.isfile(base + ext):
-                return base + ext
+        if os.path.isfile(output_file):
+            return output_file
         print("⚠️ Downloading Failed ⚠️")
         return None
     except Exception as exc:
         print(f"File check error: {exc}")
         return None
+
 
 async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name, channel_id):
     reply = await bot.send_message(channel_id, f"Downloading pdf:\n<pre><code>{name}</code></pre>")
