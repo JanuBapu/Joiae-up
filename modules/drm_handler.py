@@ -345,11 +345,7 @@ async def drm_handler(bot: Client, m: Message):
             elif 'encrypted.m' in url:
                 appxkey = url.split('*')[1]
                 url = url.split('*')[0]
-                new_headers = {
-            "Referer": "https://akstechnicalclasses.classx.co.in/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-                url = headers.update(new_headers)
+                
     
 
             if "youtu" in url:
