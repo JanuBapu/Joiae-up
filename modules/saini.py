@@ -236,41 +236,37 @@ def time_name():
 async def download_video(url, cmd, name):
     global failed_counter
 
-    # Inject Referer header if it's an appx link
-    if "appx.co.in" in url:
-        cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
-
+    # Step 1: Build final command
     download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32" "{url}" -o "{name}"'
     print(download_cmd)
     logging.info(download_cmd)
 
+    # Step 2: Run command
     k = subprocess.run(download_cmd, shell=True)
 
+    # Step 3: Retry logic (NO headers param here!)
     if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
         failed_counter += 1
         await asyncio.sleep(5)
-        await download_video(url, cmd, name, headers=headers)
+        await download_video(url, cmd, name)  # ✅ FIXED: removed headers param
         return
 
+    # Step 4: Check downloaded file
     failed_counter = 0
     try:
         if os.path.isfile(name):
             return name
         elif os.path.isfile(f"{name}.webm"):
             return f"{name}.webm"
-        name = os.path.splitext(name)[0]
-        if os.path.isfile(f"{name}.mkv"):
-            return f"{name}.mkv"
-        elif os.path.isfile(f"{name}.mp4"):
-            return f"{name}.mp4"
-        elif os.path.isfile(f"{name}.mp4.webm"):
-            return f"{name}.mp4.webm"
+        base = os.path.splitext(name)[0]
+        for ext in [".mkv", ".mp4", ".mp4.webm"]:
+            if os.path.isfile(base + ext):
+                return base + ext
         print("⚠️ Downloading Failed ⚠️")
         return None
     except Exception as exc:
         print(f"File check error: {exc}")
         return None
-
 
 async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name, channel_id):
     reply = await bot.send_message(channel_id, f"Downloading pdf:\n<pre><code>{name}</code></pre>")
@@ -296,19 +292,19 @@ def decrypt_file(file_path, key):
     return True  
 
 async def download_and_decrypt_video(url, cmd, name, key):
-    # Handle encrypted.mkv with embedded key
+    # Step 1: Extract key from URL if present
     if 'encrypted.m' in url and '*' in url:
         url, key = url.split('*')
         key = key.strip()
 
-    # Inject Referer header for appx links
-    headers = {
-        "Referer": "https://akstechnicalclasses.classx.co.in/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
+    # Step 2: Inject Referer header into cmd if needed
+    if "appx.co.in" in url:
+        cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
 
-    video_path = await download_video(url, cmd, name, headers=headers)
+    # Step 3: Call download_video WITHOUT headers param
+    video_path = await download_video(url, cmd, name)
 
+    # Step 4: Decrypt if download succeeded
     if video_path:
         if decrypt_file(video_path, key):
             print(f"File {video_path} decrypted successfully.")
