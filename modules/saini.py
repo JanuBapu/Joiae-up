@@ -286,26 +286,21 @@ def decrypt_file(file_path, key):
     return True  
 
 async def download_and_decrypt_video(url, cmd, name, key):
-    # Step 1: Extract key from URL if present
-    if 'encrypted.m' in url and '*' in url:
-        url, key = url.split('*')
-        key = key.strip()
-
-    # Step 2: Inject Referer header into cmd if needed
-    if "appx.co.in" in url:
-        cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
-
-    # Step 3: Call download_video WITHOUT headers param
-    video_path = await download_video(url, cmd, name)
-
-    # Step 4: Decrypt if download succeeded
-    if video_path:
-        if decrypt_file(video_path, key):
-            print(f"File {video_path} decrypted successfully.")
-            return video_path
-        else:
-            print(f"Failed to decrypt {video_path}.")
-    return None
+        if "appx.co.in" in url:
+            cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
+        
+    video_path = await download_video(url, cmd, name)  
+    
+    if video_path:  
+        decrypted = decrypt_file(video_path, key)  
+        if decrypted:  
+            print(f"File {video_path} decrypted successfully.")  
+            return video_path  
+        else:  
+            print(f"Failed to decrypt {video_path}.")  
+            return None  
+            
+            
 
 async def send_vid(bot: Client, m: Message, cc, filename, vidwatermark, thumb, name, prog, channel_id):
     subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 "{filename}.jpg"', shell=True)
