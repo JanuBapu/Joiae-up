@@ -46,6 +46,8 @@ import zipfile
 import shutil
 import ffmpeg
 from urllib.parse import urlparse
+import base64
+
 # .....,.....,.......,...,.......,....., .....,.....,.......,...,.......,.....,
 
 
