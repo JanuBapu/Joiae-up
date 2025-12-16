@@ -524,7 +524,19 @@ async def drm_handler(bot: Client, m: Message):
                         if topic == "/yes":
                             namef = f'{v_name}'
                         else:
-                            namef = f'{namef}'
+                            try:
+                                response = requests.get(url)
+                                if response.status_code == 200:
+                                    try:
+                                        data = response.json()
+                                        namef = data.get("title", name1).replace("nn", "")
+                                    except:
+                                        namef = name1
+                                else:
+                                    namef = name1
+                            except:
+                                namef = name1
+                        need_referer = True
                     if "cwmediabkt99" in url:
                         namef = name1
                         max_retries = 15  # Define the maximum number of retries
