@@ -280,6 +280,7 @@ async def drm_handler(bot: Client, m: Message):
     arg = int(raw_text)
     try:
         for i in range(arg-1, len(links)):
+            ytf = None
             if globals.cancel_requested:
                 await m.reply_text("🚦**STOPPED**🚦")
                 globals.processing_request = False
@@ -291,26 +292,6 @@ async def drm_handler(bot: Client, m: Message):
             link0 = "https://" + Vxy
 
             name1 = links[i][0].replace("(", "[").replace(")", "]").replace("_", "").replace("\t", "").replace(":", "").replace("/", "").replace("+", "").replace("#", "").replace("|", "").replace("@", "").replace("*", "").replace(".", "").replace("https", "").replace("http", "").strip()
-            if m.text:
-                if "youtu" in url:
-                    oembed_url = f"https://www.youtube.com/oembed?url={url}&format=json"
-                    response = requests.get(oembed_url)
-                    audio_title = response.json().get('title', 'YouTube Video')
-                    audio_title = audio_title.replace("_", " ")
-                    name = f'{audio_title[:60]}'
-                    namef = f'{audio_title[:60]}'
-                    name1 = f'{audio_title}'
-                else:
-                    name = f'{name1[:60]}'
-                    namef = f'{name1[:60]}'
-            else:
-                if endfilename == "/d":
-                    name = f'{str(count).zfill(3)}) {name1[:60]}'
-                    namef = f'{name1[:60]}'
-                else:
-                    name = f'{str(count).zfill(3)}) {name1[:60]} {endfilename}'
-                    namef = f'{name1[:60]} {endfilename}'
-                
             if "visionias" in url:
                 async with ClientSession() as session:
                     async with session.get(url, headers={'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9', 'Accept-Language': 'en-US,en;q=0.9', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Pragma': 'no-cache', 'Referer': 'http://www.visionias.in/', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'cross-site', 'Upgrade-Insecure-Requests': '1', 'User-Agent': 'Mozilla/5.0 (Linux; Android 12; RMX2121) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36', 'sec-ch-ua': '"Chromium";v="107", "Not=A?Brand";v="24"', 'sec-ch-ua-mobile': '?1', 'sec-ch-ua-platform': '"Android"',}) as resp:
