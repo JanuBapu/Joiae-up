@@ -286,10 +286,14 @@ def decrypt_file(file_path, key):
     return True  
 
 
-
 async def download_and_decrypt_video(url, cmd, name, key):
-    if "appx.co.in" in url:
+    # First referer rule
+    if "akstechnicalclasses" in url:
         cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
+
+    # Second referer rule (as you requested)
+    if "appx.co.in" in url:
+        cmd += ' --add-header "Referer: https://player.akamai.net.in/"'
 
     video_path = await download_video(url, cmd, name)
 
