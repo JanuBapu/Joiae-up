@@ -47,7 +47,7 @@ import shutil
 import ffmpeg
 from urllib.parse import urlparse
 import base64
-ytf = None
+
 # ---------------------------------------------------------
 # YOUTUBE FORMAT SELECTOR
 # ---------------------------------------------------------
@@ -417,8 +417,8 @@ async def drm_handler(bot: Client, m: Message):
                 
     
 
+            ytf = youtube_format(raw_text2)
             if "youtu" in url:
-                  ytf = youtube_format(raw_text2)
                   video_path = await download_youtube(url, ytf, name)
            
             if "jw-prod" in url:
@@ -559,41 +559,41 @@ async def drm_handler(bot: Client, m: Message):
                     else:
                         try:
                             need_referer = False
-        # Case 1: AppX signed PDF
+                            # Case 1: AppX signed PDF
                             if "appxsignurl.vercel.app/appx/" in url:
-                             need_referer = True
+                                need_referer = True
 
-                              # Case 2: static-db-v2 PDF
+                            # Case 2: static-db-v2 PDF
                             if "static-db-v2.appx.co.in" in url:
-                             need_referer = True
+                                need_referer = True
 
-        # -----------------------------------------
-        # BUILD yt-dlp COMMAND
-        # -----------------------------------------
+                            # -----------------------------------------
+                            # BUILD yt-dlp COMMAND
+                            # -----------------------------------------
                             if need_referer:
-                             referer = "https://player.akamai.net.in/"
-                             cmd = f'yt-dlp --add-header "Referer: {referer}" -o "{namef}.pdf" "{url}"'
+                                referer = "https://player.akamai.net.in/"
+                                cmd = f'yt-dlp --add-header "Referer: {referer}" -o "{namef}.pdf" "{url}"'
                             else:
-                             cmd = f'yt-dlp -o "{namef}.pdf" "{url}"'
+                                cmd = f'yt-dlp -o "{namef}.pdf" "{url}"'
 
-                             download_cmd = f"{cmd} -R 25 --fragment-retries 25"
+                            download_cmd = f"{cmd} -R 25 --fragment-retries 25"
 
-        # -----------------------------------------
-        # DOWNLOAD PDF
-        # -----------------------------------------
-                             os.system(download_cmd)
+                            # -----------------------------------------
+                            # DOWNLOAD PDF
+                            # -----------------------------------------
+                            os.system(download_cmd)
 
-        # -----------------------------------------
-        # SEND PDF
-        # -----------------------------------------
-                             copy = await bot.send_document(
-                             chat_id=channel_id,
-                             document=f"{namef}.pdf",
-                             caption=cc1
-                             )
+                            # -----------------------------------------
+                            # SEND PDF
+                            # -----------------------------------------
+                            copy = await bot.send_document(
+                                chat_id=channel_id,
+                                document=f"{namef}.pdf",
+                                caption=cc1
+                            )
 
-                             count += 1
-                             os.remove(f"{namef}.pdf")
+                            count += 1
+                            os.remove(f"{namef}.pdf")
 
                         except FloodWait as e:
                             await m.reply_text(str(e))
