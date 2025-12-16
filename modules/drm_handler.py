@@ -517,6 +517,8 @@ async def drm_handler(bot: Client, m: Message):
                             final_url = url
                             need_referer = False
                     elif "static-db-v2.appx.co.in" in url:
+                        need_referer = True
+                    elif "static-db-v2.appx.co.in" in url:
                         filename = urlparse(url).path.split("/")[-1]
                         final_url = f"https://appx-content-v2.classx.co.in/paid_course4/{filename}"
                         need_referer = True
