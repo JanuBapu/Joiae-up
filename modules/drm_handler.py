@@ -271,7 +271,7 @@ async def drm_handler(bot: Client, m: Message):
                 pinning_message_id = message_id + 1
                 await bot.delete_messages(channel_id, pinning_message_id)
         else:
-             if "/d" not in raw_text7:
+            if "/d" not in raw_text7:
                 await bot.send_message(chat_id=m.chat.id, text=f"<blockquote><b><i>🎯Target Batch : {b_name}</i></b></blockquote>\n\n🔄 Your Task is under processing, please check your Set Channel📱. Once your task is complete, I will inform you 📩")
     except Exception as e:
         await m.reply_text(f"**Fail Reason »**\n<blockquote><i>{e}</i></blockquote>\n\n✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}🌟`")
@@ -280,8 +280,7 @@ async def drm_handler(bot: Client, m: Message):
     failed_count = 0
     count =int(raw_text)    
     arg = int(raw_text)
-    try:
-        for i in range(arg-1, len(links)):
+    for i in range(arg-1, len(links)):
             ytf = None
             if globals.cancel_requested:
                 await m.reply_text("🚦**STOPPED**🚦")
@@ -305,30 +304,30 @@ async def drm_handler(bot: Client, m: Message):
                 cmd = f'yt-dlp -o "{name}.%(ext)s" -f "bestvideo[height<={raw_text2}]+bestaudio" --hls-prefer-ffmpeg --no-keep-video --remux-video mkv --no-warning "{url}"'
          
             elif "https://cpmc/" in url:
-               url = url.replace("https://cpmc/", "")  # Extract contentId
-               url = url.replace(".m3u8", "")
-               r = requests.get("https://api-seven-omega-33.vercel.app/extract", params={
-               "content_id": url,
-               "token": raw_text4
-               })
-               data = r.json()
-               signed = r.json().get("signed_url")
-               # Output variables
-               url = None
-               mpd= None
-               keys_string = ""
-               if signed and isinstance(signed, str) and "drm" in signed.lower():
-    # DRM case: extract directly from response
-                 mpd = data.get("mpd")
-                 keys = data.get("keys", [])
-                 if not mpd:
-                   raise ValueError("❌ MPD URL missing in DRM response.")
-                 if not keys:
-                    raise ValueError("❌ Decryption keys missing in DRM response.")
-                 url = mpd
-                 keys_string = " ".join([f"--key {key}" for key in keys])
-               else:
-                   url = signed
+                url = url.replace("https://cpmc/", "")  # Extract contentId
+                url = url.replace(".m3u8", "")
+                r = requests.get("https://api-seven-omega-33.vercel.app/extract", params={
+                "content_id": url,
+                "token": raw_text4
+                })
+                data = r.json()
+                signed = r.json().get("signed_url")
+                # Output variables
+                url = None
+                mpd= None
+                keys_string = ""
+                if signed and isinstance(signed, str) and "drm" in signed.lower():
+                    # DRM case: extract directly from response
+                    mpd = data.get("mpd")
+                    keys = data.get("keys", [])
+                    if not mpd:
+                        raise ValueError("❌ MPD URL missing in DRM response.")
+                    if not keys:
+                        raise ValueError("❌ Decryption keys missing in DRM response.")
+                    url = mpd
+                    keys_string = " ".join([f"--key {key}" for key in keys])
+                else:
+                    url = signed
                 
             elif 'classplusapp' in url or "testbook.com" in url or "classplusapp.com/drm" in url or "media-cdn.classplusapp.com/drm" in url:
                 headers = {
@@ -368,46 +367,23 @@ async def drm_handler(bot: Client, m: Message):
             elif 'encrypted.m' in url:
                 appxkey = url.split('*')[1]
                 url = url.split('*')[0]
-            elif 'appxsignurl.vercel.app/appx/' in url:
- # PART 1: CLEAN URL + KEY BUILDER (NO TRY/EXCEPT)
-                final_url = url
-                appxkey = None
-                encoded_key = None
+            elif "appxsignurl.vercel.app/appx/" in url:
 
-    # Case A: URL is JSON string
-                if url.strip().startswith("{"):
-                 data = json.loads(url)
-                 real_url = data["all_qualities"][0]["url"]
-                 encoded_key = data["all_qualities"][0]["key"]
+                # STEP 1: Fetch JSON
+                r = requests.get(url, timeout=10)
+                data = r.json()
 
-                 decoded_key = base64.b64decode(encoded_key).decode("utf-8", errors="ignore")
-                 final_url = f"{real_url}*{decoded_key}"
-                 appxkey = decoded_key
+                # STEP 2: Extract encrypted video URL
+                enc_url = data.get("video_url") or data["all_qualities"][0]["url"]
 
-    # Case B: URL contains "*"
-                elif "*" in url:
-                 base_part, encoded_key = url.split("*", 1)
-                 decoded_key = base64.b64decode(encoded_key).decode("utf-8", errors="ignore")
-                 final_url = f"{base_part}*{decoded_key}"
-                 appxkey = decoded_key
-
-                # Case C: Plain URL or API URL
+                # STEP 3: Split at '*' and decode Base64
+                if "*" in enc_url:
+                    before, after = enc_url.split("*", 1)
+                    decoded = base64.b64decode(after).decode().strip()
+                    final_url = before + decoded
                 else:
-                    if "appxsignurl.vercel.app/appx/" in url:
-                        try:
-                            response = requests.get(url)
-                            data = json.loads(response.text)
-                            real_url = data["all_qualities"][0]["url"]
-                            encoded_key = data["all_qualities"][0]["key"]
-                            decoded_key = base64.b64decode(encoded_key).decode("utf-8", errors="ignore")
-                            final_url = f"{real_url}*{decoded_key}"
-                            appxkey = decoded_key
-                        except (KeyError, json.JSONDecodeError, requests.RequestException) as e:
-                            final_url = url
-                            appxkey = None
-                    else:
-                        final_url = url
-                        appxkey = None
+                    final_url = enc_url
+
 
 
   
@@ -415,13 +391,13 @@ async def drm_handler(bot: Client, m: Message):
     
 
             if "youtu" in url:
-             ytf = youtube_format(raw_text2)
-             video_path = await download_youtube(url, ytf, name)
+                ytf = youtube_format(raw_text2)
+                video_path = await download_youtube(url, ytf, name)
            
             if "jw-prod" in url:
                 cmd = f'yt-dlp -o "{name}.mp4" "{url}"'
             elif "webvideos.classplusapp." in url:
-               cmd = f'yt-dlp --add-header "referer:https://web.classplusapp.com/" --add-header "x-cdn-tag:empty" -f "{ytf}" "{url}" -o "{name}.mp4"'
+                cmd = f'yt-dlp --add-header "referer:https://web.classplusapp.com/" --add-header "x-cdn-tag:empty" -f "{ytf}" "{url}" -o "{name}.mp4"'
             elif "youtube.com" in url or "youtu.be" in url:
                 cmd = f'yt-dlp --cookies youtube_cookies.txt -f "{ytf}" "{url}" -o "{name}".mp4'
             else:
@@ -492,7 +468,9 @@ async def drm_handler(bot: Client, m: Message):
                             ccimg = f'<b>{str(count).zfill(3)}.</b> {name1} .jpg'
                             ccm = f'<b>{str(count).zfill(3)}.</b> {name1} .mp3'
                             cchtml = f'<b>{str(count).zfill(3)}.</b> {name1} .html'
-                    
+
+                namef = name1
+
                 if "drive" in url:
                     ka = await helper.download(url, name)
                     copy = await bot.send_document(chat_id=channel_id,document=ka, caption=cc1)
@@ -500,136 +478,150 @@ async def drm_handler(bot: Client, m: Message):
                     os.remove(ka)
   
                 elif ".pdf" in url:
-                    final_url = url
-                    need_referer = False
-                    namef = name1
-                    if "appxsignurl.vercel.app/appx/" in url:
+                     if 'appxsignurl.vercel.app/appx/' in url:
                         try:
                             pdf_index = url.find(".pdf")
                             clean_fetch_url = url[:pdf_index + 4]
+
                             response = requests.get(clean_fetch_url)
                             data = json.loads(response.text)
+
                             final_url = data["pdf_url"]
                             namef = data["title"]
                             need_referer = True
-                        except (KeyError, json.JSONDecodeError, requests.RequestException) as e:
-                            # Fallback to original URL if API fails
-                            final_url = url
-                            need_referer = False
-                    elif "static-db-v2.appx.co.in" in url:
-                        need_referer = True
-                    elif "static-db-v2.appx.co.in" in url:
-                        filename = urlparse(url).path.split("/")[-1]
-                        final_url = f"https://appx-content-v2.classx.co.in/paid_course4/{filename}"
-                        need_referer = True
-                    else:
-                        if topic == "/yes":
-                            namef = f'{v_name}'
-                        else:
-                            try:
-                                response = requests.get(url)
-                                if response.status_code == 200:
-                                    try:
-                                        data = response.json()
-                                        namef = data.get("title", name1).replace("nn", "")
-                                    except:
-                                        namef = name1
-                                else:
+                        except (KeyError, json.JSONDecodeError, requests.RequestException):
+                    # Fallback to original URL if API fails
+                           final_url = url
+                           need_referer = False
+
+            # -----------------------------------------
+            # CASE 2: static-db-v2 → map to classx CDN
+            # -----------------------------------------
+                     elif "static-db-v2.appx.co.in" in url:
+                      need_referer = True
+                     elif "static-db-v2.appx.co.in" in url:
+                      filename = urlparse(url).path.split("/")[-1]
+                      final_url = f"https://appx-content-v2.classx.co.in/paid_course4/{filename}"
+                      need_referer = True
+
+            # -----------------------------------------
+            # CASE 3: Generic JSON/normal PDF (title fetch)
+            # -----------------------------------------
+                     else:
+                         if topic == "/yes":
+                          namef = f"{v_name}"
+                     else:
+                         try:
+                            response = requests.get(url)
+                            if response.status_code == 200:
+                                try:
+                                    data = response.json()
+                                    namef = data.get("title", name1).replace("nn", "")
+                                except Exception:
                                     namef = name1
-                            except:
-                                namef = name1
-                        need_referer = True
-                    if "cwmediabkt99" in url:
-                        namef = name1
-                        max_retries = 15  # Define the maximum number of retries
-                        retry_delay = 4  # Delay between retries in seconds
-                        success = False  # To track whether the download was successful
-                        failure_msgs = []  # To keep track of failure messages
-                        
-                        for attempt in range(max_retries):
-                            try:
-                                await asyncio.sleep(retry_delay)
-                                url = url.replace(" ", "%20")
-                                scraper = cloudscraper.create_scraper()
-                                response = scraper.get(url)
-
-                                if response.status_code == 200:
-                                    with open(f'{namef}.pdf', 'wb') as file:
-                                        file.write(response.content)
-                                    await asyncio.sleep(retry_delay)  # Optional, to prevent spamming
-                                    copy = await bot.send_document(chat_id=channel_id, document=f'{namef}.pdf', caption=cc1)
-                                    count += 1
-                                    os.remove(f'{namef}.pdf')
-                                    success = True
-                                    break  # Exit the retry loop if successful
-                                else:
-                                    failure_msg = await m.reply_text(f"Attempt {attempt + 1}/{max_retries} failed: {response.status_code} {response.reason}")
-                                    failure_msgs.append(failure_msg)
-                                    
-                            except Exception as e:
-                                failure_msg = await m.reply_text(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
-                                failure_msgs.append(failure_msg)
-                                await asyncio.sleep(retry_delay)
-                                continue 
-                    else:
-                        namef = name1
-                        try:
-                            need_referer = False
-                            # Case 1: AppX signed PDF
-                            if "appxsignurl.vercel.app/appx/" in url:
-                                need_referer = True
-
-                            # Case 2: static-db-v2 PDF
-                            if "static-db-v2.appx.co.in" in url:
-                                need_referer = True
-
-                            # -----------------------------------------
-                            # BUILD yt-dlp COMMAND
-                            # -----------------------------------------
-                            if need_referer:
-                                referer = "https://player.akamai.net.in/"
-                                cmd = f'yt-dlp --add-header "Referer: {referer}" -o "{namef}.pdf" "{url}"'
                             else:
-                                cmd = f'yt-dlp -o "{namef}.pdf" "{url}"'
+                                namef = name1
+                    except Exception:
+                        namef = name1
+                # For most portals, referer needed
+                need_referer = True
 
-                            download_cmd = f"{cmd} -R 25 --fragment-retries 25"
+            # ------------------------------------------------------------------
+            # SPECIAL CASE: cwmediabkt99 (Cloudflare-protected direct download)
+            # ------------------------------------------------------------------
+            if "cwmediabkt99" in url:
+                namef = name1
+                max_retries = 15
+                retry_delay = 4
+                success = False
+                failure_msgs = []
 
-                            # -----------------------------------------
-                            # DOWNLOAD PDF
-                            # -----------------------------------------
-                            os.system(download_cmd)
+                for attempt in range(max_retries):
+                    try:
+                        await asyncio.sleep(retry_delay)
+                        safe_url = url.replace(" ", "%20")
 
-                            # -----------------------------------------
-                            # SEND PDF
-                            # -----------------------------------------
-                            copy = await bot.send_document(
+                        scraper = cloudscraper.create_scraper()
+                        response = scraper.get(safe_url)
+
+                        if response.status_code == 200:
+                            with open(f"{namef}.pdf", "wb") as file:
+                                file.write(response.content)
+
+                            await asyncio.sleep(1)
+                            await bot.send_document(
                                 chat_id=channel_id,
                                 document=f"{namef}.pdf",
                                 caption=cc1
                             )
-
                             count += 1
                             os.remove(f"{namef}.pdf")
+                            success = True
+                            break
+                        else:
+                            failure_msg = await m.reply_text(
+                                f"Attempt {attempt + 1}/{max_retries} failed: "
+                                f"{response.status_code} {response.reason}"
+                            )
+                            failure_msgs.append(failure_msg)
 
-                        except FloodWait as e:
-                            await m.reply_text(str(e))
-                            time.sleep(e.x)
-                            continue
+                    except Exception as e:
+                        failure_msg = await m.reply_text(
+                            f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}"
+                        )
+                        failure_msgs.append(failure_msg)
+                        await asyncio.sleep(retry_delay)
+                        continue
 
-                elif ".ws" in url and  url.endswith(".ws"):
+            # ------------------------------------------------------------------
+            # NORMAL PDF DOWNLOAD VIA yt-dlp (USES final_url + REFERER)
+            # ------------------------------------------------------------------
+            else:
+                try:
+                    download_source = final_url  # ALWAYS use filtered/final URL
+
+                    # Decide referer (already decided above)
+                    if need_referer:
+                        referer = "https://player.akamai.net.in/"
+                        cmd = (
+                            f'yt-dlp --add-header "Referer: {referer}" '
+                            f'-o "{namef}.pdf" "{download_source}"'
+                        )
+                    else:
+                        cmd = f'yt-dlp -o "{namef}.pdf" "{download_source}"'
+
+                    download_cmd = f"{cmd} -R 25 --fragment-retries 25"
+
+                    # Download PDF
+                    os.system(download_cmd)
+
+                    # Send PDF to channel
+                    await bot.send_document(
+                        chat_id=channel_id,
+                        document=f"{namef}.pdf",
+                        caption=cc1
+                    )
+
+                    count += 1
+                    os.remove(f"{namef}.pdf")
+
+                except FloodWait as e:
+                    await m.reply_text(str(e))
+                    time.sleep(e.x)
+                    continue
+            if '.ws' in url and url.endswith('.ws'):
                     try:
                         await helper.pdf_download(f"{api_url}utkash-ws?url={url}&authorization={api_token}",f"{name}.html")
                         time.sleep(1)
                         await bot.send_document(chat_id=channel_id, document=f"{name}.html", caption=cchtml)
                         os.remove(f'{name}.html')
                         count += 1
-                    except FloodWait as e:
+                except FloodWait as e:
                         await m.reply_text(str(e))
                         time.sleep(e.x)
-                        continue    
-                            
-                elif any(ext in url for ext in [".jpg", ".jpeg", ".png"]):
-                    try:
+                        continue
+            elif any(ext in url for ext in [".jpg", ".jpeg", ".png"]):
+                try:
                         namef = name1
                         ext = url.split('.')[-1]
                         cmd = f'yt-dlp -o "{namef}.{ext}" "{url}"'
@@ -641,10 +633,9 @@ async def drm_handler(bot: Client, m: Message):
                     except FloodWait as e:
                         await m.reply_text(str(e))
                         time.sleep(e.x)
-                        continue    
-
-                elif any(ext in url for ext in [".mp3", ".wav", ".m4a"]):
-                    try:
+                        continue
+            elif any(ext in url for ext in [".mp3", ".wav", ".m4a"]):
+                try:
                         namef = name1
                         ext = url.split('.')[-1]
                         cmd = f'yt-dlp -o "{namef}.{ext}" "{url}"'
@@ -653,29 +644,28 @@ async def drm_handler(bot: Client, m: Message):
                         copy = await bot.send_document(chat_id=channel_id, document=f'{namef}.{ext}', caption=ccm)
                         count += 1
                         os.remove(f'{namef}.{ext}')
-                    except FloodWait as e:
+                except FloodWait as e:
                         await m.reply_text(str(e))
                         time.sleep(e.x)
-                        continue    
-                    
-                elif 'appxsignurl.vercel.app/appx/' in url or 'encrypted.m' in url :    
+                        continue
+                elif 'appxsignurl.vercel.app/appx/' in url or 'encrypted.m' in url :
                     remaining_links = len(links) - count
                     progress = (count / len(links)) * 100
                     Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
-                           f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
-                           f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Eɴᴄʀʏᴘᴛᴇᴅ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
-                           f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
-                           f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
-                           f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
-                           f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
-                           f'╰━━🖇️𝐔𝐫𝐥 » <a href="{final_url}">**Api Link**</a>\n' \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"🛑**Send** /stop **to stop process**\n┃\n" \
-                           f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+                        f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
+                        f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Eɴᴄʀʏᴘᴛᴇᴅ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
+                        f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
+                        f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
+                        f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
+                        f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
+                        f'╰━━🖇️𝐔𝐫𝐥 » <a href="{final_url}">**Api Link**</a>\n' \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"🛑**Send** /stop **to stop process**\n┃\n" \
+                        f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
                     Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>" 
                     prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                     prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
@@ -686,26 +676,25 @@ async def drm_handler(bot: Client, m: Message):
                     await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id)
                     count += 1  
                     await asyncio.sleep(1)  
-                    continue  
-
+                    continue
                 elif 'drmcdni' in url or 'drm/wv' in url or 'drm/common' in url:
                     remaining_links = len(links) - count
                     progress = (count / len(links)) * 100
                     Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
-                           f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
-                           f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
-                           f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
-                           f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
-                           f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
-                           f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
-                           f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"🛑**Send** /stop **to stop process**\n┃\n" \
-                           f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+                        f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
+                        f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
+                        f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
+                        f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
+                        f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
+                        f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
+                        f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"🛑**Send** /stop **to stop process**\n┃\n" \
+                        f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
                     Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
                     prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                     prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
@@ -722,20 +711,20 @@ async def drm_handler(bot: Client, m: Message):
                     remaining_links = len(links) - count
                     progress = (count / len(links)) * 100
                     Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
-                           f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
-                           f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
-                           f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
-                           f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
-                           f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
-                           f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
-                           f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
-                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                           f"🛑**Send** /stop **to stop process**\n┃\n" \
-                           f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+                        f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
+                        f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
+                        f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
+                        f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
+                        f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
+                        f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
+                        f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                        f"🛑**Send** /stop **to stop process**\n┃\n" \
+                        f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
                     Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
                     prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                     prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
@@ -745,23 +734,13 @@ async def drm_handler(bot: Client, m: Message):
                     await prog.delete(True)
                     await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id)
                     count += 1
-                    time.sleep(1)
-                
-            except Exception as e:
-                await bot.send_message(channel_id, f'⚠️**Downloading Failed**⚠️\n**Name** =>> `{str(count).zfill(3)} {name1}`\n**Url** =>> {url}\n\n<blockquote expandable><i><b>Failed Reason: {str(e)}</b></i></blockquote>', disable_web_page_preview=True)
-                count += 1
-                failed_count += 1
-                continue
+    time.sleep(1)
 
-    except Exception as e:
-        await m.reply_text(e)
-        time.sleep(2)
-
-    success_count = len(links) - failed_count
-    video_count = v2_count + mpd_count + m3u8_count + yt_count + drm_count + zip_count + other_count
-    if m.document:
-        if raw_text7 == "/d":
-            await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
-        else:
-            await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
-            await bot.send_message(m.chat.id, f"<blockquote><b>✅ Your Task is completed, please check your Set Channel📱</b></blockquote>")
+success_count = len(links) - failed_count
+video_count = v2_count + mpd_count + m3u8_count + yt_count + drm_count + zip_count + other_count
+if m.document:
+    if raw_text7 == "/d":
+        await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
+    else:
+        await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
+        await bot.send_message(m.chat.id, f"<blockquote><b>✅ Your Task is completed, please check your Set Channel📱</b></blockquote>")
