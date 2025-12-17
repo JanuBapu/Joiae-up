@@ -287,6 +287,11 @@ def decrypt_file(file_path, key):
 
 
 async def download_and_decrypt_video(url, cmd, name, key):
+    
+
+    # FIX: avoid NoneType error
+    if cmd is None:
+        cmd = ""
     # First referer rule
     if "akstechnicalclasses" in url:
         cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
