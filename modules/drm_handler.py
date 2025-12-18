@@ -379,14 +379,18 @@ async def drm_handler(bot: Client, m: Message):
              enc_url = data_json.get("video_url") or data_json["all_qualities"][0]["url"]
 
              if "*" in enc_url:
-                before, after = enc_url.split("*", 1)
-                decoded = base64.b64decode(after).decode().strip()
-                final_url = before + decoded
-             else:
-                final_url = enc_url
+               before, after = enc_url.split("*", 1)
 
-                url = final_url
-                appxkey = data_json.get("encryption_key")
+        # URL = * se pehle wala
+               url = before.strip()
+
+        # APPX KEY = * ke baad wala decoded
+               appxkey = base64.b64decode(after).decode().strip()
+
+             else:
+        # Direct URL case
+              url = enc_url.strip()
+              appxkey = data_json.get("encryption_key")
 
 
   
@@ -489,7 +493,7 @@ async def drm_handler(bot: Client, m: Message):
                             response = requests.get(clean_fetch_url, timeout=10)
                             data = response.json()
 
-                            final_url = data["pdf_url"]
+                            url = data["pdf_url"]
                             namef = data.get("title", name1)
                             need_referer = True
 
@@ -500,14 +504,14 @@ async def drm_handler(bot: Client, m: Message):
 
 
                     elif "static-db.appx.co.in" in url:
-                           final_url = url
+                           
                            need_referer = True
                            namef = name1
 
 
                     elif "static-db-v2.appx.co.in" in url:
                         filename = urlparse(url).path.split("/")[-1]
-                        final_url = f"https://appx-content-v2.classx.co.in/paid_course4/{filename}"
+                        url = f"https://appx-content-v2.classx.co.in/paid_course4/{filename}"
                         need_referer = True
                         namef = name1
                     else:
@@ -649,7 +653,7 @@ async def drm_handler(bot: Client, m: Message):
                            f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
                            f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
                            f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
-                           f'╰━━🖇️𝐔𝐫𝐥 » <a href="{final_url}">**Api Link**</a>\n' \
+                           f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
                            f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
                            f"🛑**Send** /stop **to stop process**\n┃\n" \
                            f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
