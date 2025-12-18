@@ -313,19 +313,24 @@ def decrypt_file(file_path, key):
 
 
 async def download_and_decrypt_video(url, cmd, name, key):
-    
 
-    # FIX: avoid NoneType error
+    # Avoid NoneType error
     if cmd is None:
         cmd = ""
-    # First referer rule
+
+    # Referer for AKS Technical Classes
     if "akstechnicalclasses" in url:
         cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
 
-    # Second referer rule (as you requested)
-    if "appx.co.in" in url:
+    # Referer for AppxSignURL (IMPORTANT)
+    if "appxsignurl.vercel.app/appx/" in url:
         cmd += ' --add-header "Referer: https://player.akamai.net.in/"'
 
+    # Referer for AppX m3u8 / encrypted.m
+    if "appx.co.in" in url or "encrypted.m" in url:
+        cmd += ' --add-header "Referer: https://player.akamai.net.in/"'
+
+    # Download video
     video_path = await download_video(url, cmd, name)
 
     if video_path:
