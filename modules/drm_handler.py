@@ -395,7 +395,18 @@ async def drm_handler(bot: Client, m: Message):
 
   
                 
-    
+            elif "dragoapi.vercel.app" in url or url.endswith(".m3u8"):
+    # Step 1: Hit the URL (it auto-redirects to real HLS)
+             r = requests.get(url, timeout=10, allow_redirects=True)
+
+    # Step 2: Final resolved URL
+             final_url = r.url
+
+    # Step 3: Store directly in url for downloading
+             url = final_url.strip()
+
+    # Step 4: No referer needed for this pattern
+             need_referer = False
 
             if "youtu" in url:
              ytf = youtube_format(raw_text2)
@@ -498,7 +509,7 @@ async def drm_handler(bot: Client, m: Message):
                             need_referer = True
 
                         except Exception:
-                            final_url = url
+                            
                             need_referer = True
                             namef = name1
 
@@ -639,7 +650,7 @@ async def drm_handler(bot: Client, m: Message):
                         time.sleep(e.x)
                         continue    
                     
-                elif 'appxsignurl.vercel.app/appx/' in url or 'encrypted.m' in url :    
+                elif (".m3u8" in url and "appx" in url) or "encrypted.m" in url or "appxsignurl.vercel.app/appx/" in url:    
                     remaining_links = len(links) - count
                     progress = (count / len(links)) * 100
                     Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
