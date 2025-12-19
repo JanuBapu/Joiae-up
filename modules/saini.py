@@ -239,9 +239,10 @@ failed_counter = 0
 async def download_video(url, cmd, name):
     global failed_counter
 
-    # sanitize name (remove extension if present)
+    # Sanitize name (remove extension if present)
     base_name = os.path.splitext(name)[0]
 
+    # Proper yt-dlp command with output template
     download_cmd = (
         f'yt-dlp "{url}" -o "{base_name}.%(ext)s" {cmd} '
         '-R 25 --fragment-retries 25 '
@@ -254,6 +255,7 @@ async def download_video(url, cmd, name):
 
     k = subprocess.run(download_cmd, shell=True)
 
+    # Retry logic
     if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
         failed_counter += 1
         await asyncio.sleep(5)
@@ -261,13 +263,13 @@ async def download_video(url, cmd, name):
 
     failed_counter = 0
 
+    # Check for downloaded file
     for ext in [".mp4", ".mkv", ".webm"]:
         candidate = base_name + ext
         if os.path.isfile(candidate):
             return candidate
 
     return None
-
 
 async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name, channel_id):
     reply = await bot.send_message(channel_id, f"Downloading pdf:\n<pre><code>{name}</code></pre>")
