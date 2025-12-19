@@ -372,20 +372,25 @@ async def drm_handler(bot: Client, m: Message):
             elif 'encrypted.m' in url:
                 appxkey = url.split('*')[1]
                 url = url.split('*')[0]
+            elif "dragoapi.vercel.app" in url and "*" in url and url.strip().endswith(".mkv"):
+                appxkey = url.split("*")[1]
+                url = url.split("*")[0]
+
             elif ".m3u8" in url and "appx" in url:
              r = requests.get(url, timeout=10)
              data_json = r.json()
 
-             enc_url = data_json.get("video_url") or data_json["all_qualities"][0]["url"]
+             enc_url = data_json.get("video_url")
 
              if "*" in enc_url:
+        # URL = * se pehle wala
                before, after = enc_url.split("*", 1)
 
-        # URL = * se pehle wala
+    # URL = * se pehle wala
                url = before.strip()
 
-        # APPX KEY = * ke baad wala decoded
-               appxkey = base64.b64decode(after).decode().strip()
+    # APPX KEY = * ke baad wala decoded (final digit)
+               appxkey = base64.b64decode(after.strip()).decode().strip()
 
              else:
         # Direct URL case
@@ -498,21 +503,34 @@ async def drm_handler(bot: Client, m: Message):
                     need_referer = False
                     namef = name1
                     if "appxsignurl.vercel.app/appx/" in url:
-                        try:
-                            pdf_index = url.find(".pdf")
-                            clean_fetch_url = url[:pdf_index + 4]
-                            response = requests.get(clean_fetch_url, timeout=10)
-                            data = response.json()
+                      try:
+        # Step 1: Clean the fetch URL (original request)
+                          pdf_index = url.find(".pdf")
+                          clean_fetch_url = url[:pdf_index + 4]
 
-                            url = data["pdf_url"]
-                            namef = data.get("title", name1)
-                            need_referer = True
+        # Step 2: Fetch JSON from API
+                          response = requests.get(clean_fetch_url, timeout=10)
+                          data = response.json()
 
-                        except Exception:
-                            
-                            need_referer = True
-                            namef = name1
+        # Step 3: Extract actual PDF URL from JSON
+                          pdf_url = data.get("pdf_url")
+                          if pdf_url:
+                            url = pdf_url.strip()   # overwrite with real downloadable link
+                          else:
+                            print("No pdf_url found in response JSON.")
+                            url = clean_fetch_url   # fallback
 
+        # Step 4: Extract title if available
+                          namef = data.get("title", name1)
+
+        # Step 5: Mark referer requirement
+                          need_referer = True
+
+                      except Exception as e:
+                        print(f"Error fetching AppxSignURL JSON: {e}")
+                        need_referer = True
+                        namef = name1
+                    
 
                     elif "static-db.appx.co.in" in url:
                            
