@@ -233,61 +233,39 @@ def time_name():
     return f"{date} {current_time}.mp4"
 
 
+import subprocess, os, asyncio, logging
+
+failed_counter = 0
+
 async def download_video(url, cmd, name):
-
-    # Detect DragoAPI / LiveLearn / Rozgar final URLs
-    if (
-        "transcoded-videos.livelearn.in" in url
-        or "rozgar" in url
-        or "hls-" in url
-        or "edge-cache-token" in url
-    ):
-        referer = ' --add-header "Referer: https://player.akamai.net.in/"'
-    else:
-        referer = ""
-
-    # Build final download command
-    download_cmd = (
-        f'{cmd}{referer} -R 25 --fragment-retries 25 '
-        '--external-downloader aria2c '
-        '--downloader-args "aria2c: -x 16 -j 32" '
-        '--cookies cookies.txt'
-    )
-
     global failed_counter
+
+    # Build proper yt-dlp command with URL and output file
+    download_cmd = f'yt-dlp "{url}" -o "{name}" {cmd} -R 25 --fragment-retries 25 ' \
+                   '--external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
+
     print(download_cmd)
     logging.info(download_cmd)
 
     k = subprocess.run(download_cmd, shell=True)
 
+    # Retry logic for visionias
     if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
         failed_counter += 1
-        await asyncio.sleep(1)
-        await download_video(url, cmd, name)
+        await asyncio.sleep(5)
+        return await download_video(url, cmd, name)
 
     failed_counter = 0
 
-    try:
-        if os.path.isfile(name):
-            return name
-        elif os.path.isfile(f"{name}.webm"):
-            return f"{name}.webm"
+    # Check for downloaded file
+    base = os.path.splitext(name)[0]
+    for ext in ["", ".webm", ".mkv", ".mp4", ".mp4.webm"]:
+        candidate = base + ext if ext else name
+        if os.path.isfile(candidate):
+            return candidate
 
-        name = name.split(".")[0]
-
-        if os.path.isfile(f"{name}.mkv"):
-            return f"{name}.mkv"
-        elif os.path.isfile(f"{name}.mp4"):
-            return f"{name}.mp4"
-        elif os.path.isfile(f"{name}.mp4.webm"):
-            return f"{name}.mp4.webm"
-
-        return name
-
-    except FileNotFoundError:
-        return name + ".mp4"   
-
-
+    # If nothing found, return None
+    return None
 async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name, channel_id):
     reply = await bot.send_message(channel_id, f"Downloading pdf:\n<pre><code>{name}</code></pre>")
     time.sleep(1)
@@ -312,6 +290,7 @@ def decrypt_file(file_path, key):
     return True  
 
 
+
 async def download_and_decrypt_video(url, cmd, name, key: bytes):
     if not url or not isinstance(url, str):
         print("Invalid URL provided.")
@@ -323,7 +302,7 @@ async def download_and_decrypt_video(url, cmd, name, key: bytes):
     # Add referer header depending on source
     if "akstechnicalclasses" in url:
         cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
-    elif "appxsignurl.vercel.app/appx/" in url or "appx.co.in" in url or "encrypted.m" in url:
+    elif "appx" in url or "encrypted.m" in url or "dragoapi.vercel.app" in url:
         cmd += ' --add-header "Referer: https://player.akamai.net.in/"'
 
     # Download step
