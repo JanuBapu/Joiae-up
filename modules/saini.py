@@ -287,44 +287,64 @@ def decrypt_file(file_path, key):
 
 import asyncio
 
-async def download_and_decrypt_video(url, cmd, name, key):
-    # AppX URLs require referer header
-    if "appx" in url:
-        video_path = await download_video_referer(
-            url, cmd, name, referer="https://akstechnicalclasses.classx.co.in/"
-        )
-    else:
-        video_path = await download_video(url, cmd, name)  # tumhara existing function
+import asyncio
 
-    if video_path:
+async def download_and_decrypt_video(url, cmd, name, key):
+    try:
+        # Agar URL me 'appx' hai to referer header use karo
+        if "appx" in url:
+            video_path = await download_video_referer(
+                url, cmd, name, referer="https://akstechnicalclasses.classx.co.in/"
+            )
+        else:
+            video_path = await download_video(url, cmd, name)  # tumhara existing function
+
+        if not video_path:
+            print(f"[ERROR] Download failed for URL: {url}")
+            return None
+
         decrypted = decrypt_file(video_path, key)
         if decrypted:
-            print(f"File {video_path} decrypted successfully.")
+            print(f"[SUCCESS] File {video_path} decrypted successfully.")
             return video_path
         else:
-            print(f"Failed to decrypt {video_path}.")
+            print(f"[ERROR] Failed to decrypt {video_path}.")
             return None
+
+    except Exception as e:
+        print(f"[EXCEPTION] Unexpected error in download_and_decrypt_video: {e}")
+        return None
 
 
 async def download_video_referer(url, cmd, name, referer):
     # AppX download with referer header
-    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c ' \
-                   f'--downloader-args "aria2c: -x 16 -j 32 --header Referer:{referer}" ' \
-                   f'-o "{name}.mp4" "{url}"'
-
-    process = await asyncio.create_subprocess_shell(
-        download_cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+    download_cmd = (
+        f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c '
+        f'--downloader-args "aria2c: -x 16 -j 32 --header=\\"Referer: {referer}\\"" '
+        f'-o "{name}.mp4" "{url}"'
     )
-    stdout, stderr = await process.communicate()
 
-    if process.returncode == 0:
-        print(f"Downloaded {name}.mp4 with referer {referer}")
-        return f"{name}.mp4"
-    else:
-        print(f"Failed to download {url} with referer {referer}")
-        print(stderr.decode())
+    print("[DEBUG] Running command:", download_cmd)
+
+    try:
+        process = await asyncio.create_subprocess_shell(
+            download_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode == 0:
+            print(f"[SUCCESS] Downloaded {name}.mp4 with referer {referer}")
+            return f"{name}.mp4"
+        else:
+            print(f"[ERROR] Download failed for {url} with referer {referer}")
+            print("[STDERR]", stderr.decode())
+            print("[STDOUT]", stdout.decode())
+            return None
+
+    except Exception as e:
+        print(f"[EXCEPTION] Unexpected error in download_video_referer: {e}")
         return None
 async def send_vid(bot: Client, m: Message, cc, filename, vidwatermark, thumb, name, prog, channel_id):
     subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 "{filename}.jpg"', shell=True)
