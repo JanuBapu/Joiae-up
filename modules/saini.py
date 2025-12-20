@@ -298,56 +298,54 @@ async def download_video(url,cmd, name):
 
         
 async def download_and_decrypt_video(url, cmd, name, key):
-    # 1. Referer aur User-Agent setup
-    referer = ""
-    if "akstechnicalclasses" in url or "classx.co.in" in url:
-        referer = "https://akstechnicalclasses.classx.co.in/"
-    elif "appx" in url or "encrypted.m" in url:
-        referer = "https://player.akamai.net.in/"
-    
-    # Headers ko string mein convert karna
-    headers = f'--add-header "Referer:{referer}" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
-    
-    # 2. Alag se Download Logic (Original download_video ko chhede bina)
+    # 1. Base name saaf karna (spaces aur special characters ke liye)
     base_name = name.split(".")[0].strip()
     
-    # Yahan humne direct yt-dlp command likh di hai
-    # Quotes aur %(ext)s ka use kiya hai taaki "More than one file" error na aaye
-    new_download_cmd = (
-        f'yt-dlp "{url}" {headers} {cmd} '
+    # 2. Referer aur User-Agent fix (AKS ke liye strict)
+    referer = "https://akstechnicalclasses.classx.co.in/" if "akstechnicalclasses" in url else "https://player.akamai.net.in/"
+    
+    # Hum 'yt-dlp' word ko cmd se hata rahe hain agar wo pehle se wahan hai
+    clean_cmd = cmd.replace("yt-dlp", "").strip()
+    
+    # 3. Independent Command (Ye kisi aur function par depend nahi hai)
+    # Quotes ka use kiya hai taaki '&' symbols link ko na todein
+    final_cmd = (
+        f'yt-dlp "{url}" '
+        f'--add-header "Referer:{referer}" '
+        f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
         f'-o "{base_name}.%(ext)s" '
-        '--no-part --no-check-certificate '
-        '-R 25 --fragment-retries 25 '
-        '--external-downloader aria2c '
-        '--downloader-args "aria2c: -x 16 -j 32"'
+        f'{clean_cmd} '
+        '--no-part --no-check-certificate -R 25 --fragment-retries 25 '
+        '--external-downloader aria2c --downloader-args "aria2c:-x 16 -j 32"'
     )
 
-    print(f"🚀 Running Special Download: {new_download_cmd}")
-    
-    # Download execute karna
+    print(f"🚀 Downloading: {name}")
     import subprocess
-    process = subprocess.run(new_download_cmd, shell=True)
     
-    # 3. Downloaded File ko find karna
+    # Download start
+    result = subprocess.run(final_cmd, shell=True)
+    
+    # 4. Downloaded file dhoondhna
     video_path = None
     for ext in [".mkv", ".mp4", ".ts", ".webm"]:
-        path = f"{base_name}{ext}"
-        if os.path.exists(path):
-            video_path = path
+        temp_path = f"{base_name}{ext}"
+        if os.path.exists(temp_path):
+            video_path = temp_path
             break
-            
-    # 4. Decrypt Logic (Aapka original structure)
+    
+    # 5. Decrypt Logic
     if video_path:
-        decrypted = decrypt_file(video_path, key)
+        # Key ko bytes mein convert karna (agar string hai toh)
+        key_bytes = key.encode() if isinstance(key, str) else key
+        
+        decrypted = decrypt_file(video_path, key_bytes)
         if decrypted:
-            print(f"✅ File {video_path} decrypted successfully.")
+            print(f"✅ Decrypted Successfully: {video_path}")
             return video_path
-        else:
-            print(f"❌ Failed to decrypt {video_path}.")
-            return None
-    else:
-        print("❌ Download failed even with referer.")
-        return None
+    
+    print("❌ Download ya Decryption fail ho gaya.")
+    return None
+    
         
         
 
