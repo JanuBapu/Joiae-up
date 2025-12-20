@@ -293,26 +293,23 @@ import asyncio
 
 async def download_and_decrypt_video(url, cmd, name, key):
     try:
-        # Agar AppX URL hai to referer inject karo
-        if "appx" in url:
-            cmd = (
-                f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c '
-                f'--downloader-args "aria2c: -x 16 -j 32 --header=Referer: https://akstechnicalclasses.classx.co.in/"'
-            )
-        else:
-            cmd = (
-                f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c '
-                f'--downloader-args "aria2c: -x 16 -j 32"'
-            )
+        # Always use this referer for all downloads
+        referer = "https://akstechnicalclasses.classx.co.in/"
 
-        # Tumhara existing download_video call
+        # Build yt-dlp command with aria2c and referer header
+        cmd = (
+            f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c '
+            f'--downloader-args "aria2c:-x 16 -j 32 --header=\'Referer: {referer}\'"'
+        )
+
+        # Download the video
         video_path = await download_video(url, cmd, name)
 
         if not video_path:
             print(f"[ERROR] Download failed for URL: {url}")
             return None
 
-        # Decrypt stage
+        # Decrypt the file
         decrypted = decrypt_file(video_path, key)
         if decrypted:
             print(f"[SUCCESS] File {video_path} decrypted successfully.")
