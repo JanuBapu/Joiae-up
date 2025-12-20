@@ -276,14 +276,14 @@ async def download_video(url, cmd, name):
 
 async def download_and_decrypt_video(url, cmd, name, key):
     if "appx.co.in" in url:
-        # Referer required; avoid forcing unavailable formats; prefer HLS joining via ffmpeg; merge to mp4
+        # 1DM style: inject referer + prefer ffmpeg for HLS + merge to mp4
         cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
         cmd += " --hls-prefer-ffmpeg --merge-output-format mp4"
-        # Optional: if you previously added `-f ...` and it caused errors, remove it from cmd.
-        # Keep it minimal and predictable. If you want to force, use: cmd += " -f best"
 
+    # call your existing download_video (unchanged)
     video_path = await download_video(url, cmd, name)
 
+    # 1DM style: final file expected as mp4
     if video_path and os.path.isfile(video_path):
         decrypted = decrypt_file(video_path, key)
         if decrypted:
