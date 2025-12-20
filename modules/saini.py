@@ -268,60 +268,77 @@ def decrypt_file(file_path, key: bytes):
 
 
 
-async def download_video(url,cmd, name):
-    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
+async def download_video(url, cmd, name):
+    # FIX: yt-dlp, url aur output template add kiya gaya hai
+    # Quotes ("") lagaye hain taaki lambi link break na ho
+    download_cmd = f'yt-dlp "{url}" -o "{name}.%(ext)s" {cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
+    
     global failed_counter
     print(download_cmd)
     logging.info(download_cmd)
+    
+    # Subprocess call (Aapka original method)
     k = subprocess.run(download_cmd, shell=True)
+    
+    # Retry logic (VisionIAS)
     if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
         failed_counter += 1
         await asyncio.sleep(5)
-        await download_video(url, cmd, name)
+        # Fix: Yahan 'return' lagana zaroori hai
+        return await download_video(url, cmd, name)
+    
     failed_counter = 0
+    
     try:
+        # File checking logic (Aapka original format)
         if os.path.isfile(name):
             return name
         elif os.path.isfile(f"{name}.webm"):
             return f"{name}.webm"
-        name = name.split(".")[0]
-        if os.path.isfile(f"{name}.mkv"):
-            return f"{name}.mkv"
-        elif os.path.isfile(f"{name}.mp4"):
-            return f"{name}.mp4"
-        elif os.path.isfile(f"{name}.mp4.webm"):
-            return f"{name}.mp4.webm"
+            
+        # Extension checking logic
+        base_name = name.split(".")[0]
+        if os.path.isfile(f"{base_name}.mkv"):
+            return f"{base_name}.mkv"
+        elif os.path.isfile(f"{base_name}.mp4"):
+            return f"{base_name}.mp4"
+        elif os.path.isfile(f"{base_name}.mp4.webm"):
+            return f"{base_name}.mp4.webm"
 
         return name
-    except FileNotFoundError as exc:
-        return os.path.isfile.splitext[0] + "." + "mp4"
+    except Exception as exc:
+        # Fallback
+        return name
+        
         
 
 
 async def download_and_decrypt_video(url, cmd, name, key: bytes):
-    # 1. Referer Logic Fix for AKS and Appx
+    # REFERER FIX: AKS Technical Classes ke liye strict referer
     if "akstechnicalclasses" in url or "appx.co.in" in url:
-        # AKS ke liye strict referer
-        cmd += ' --add-header "Referer: https://akstechnicalclasses.classx.co.in/"'
+        cmd += ' --add-header "Referer:https://akstechnicalclasses.classx.co.in/"'
     elif "appx" in url or "encrypted.m" in url or "dragoapi.vercel.app" in url:
-        cmd += ' --add-header "Referer: https://player.akamai.net.in/"'
+        cmd += ' --add-header "Referer:https://player.akamai.net.in/"'
+    
+    # User-Agent add karna 403 Forbidden se bachne ke liye zaruri hai
+    cmd += ' --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
 
-    # 2. Video Download call
+    # Download call
     video_path = await download_video(url, cmd, name)
     
-    if not video_path:
+    if video_path:
+        # Decrypt call (Aapka original logic)
+        decrypted = decrypt_file(video_path, key)
+        if decrypted:
+            print(f"File {video_path} decrypted successfully.")
+            return video_path
+        else:
+            print(f"Failed to decrypt {video_path}.")
+            return None
+    else:
         print("Video download failed.")
         return None
-
-    # 3. Decrypt call
-    decrypted_path = decrypt_file(video_path, key)
-    
-    if decrypted_path:
-        print(f"File {decrypted_path} decrypted successfully.")
-        return decrypted_path
-    else:
-        print(f"Failed to decrypt {video_path}.")
-        return None
+        
 
 
 
