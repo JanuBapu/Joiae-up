@@ -267,78 +267,88 @@ def decrypt_file(file_path, key: bytes):
     return file_path
 
 
-
-async def download_video(url, cmd, name):
+async def download_video(url,cmd, name):
+    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
     global failed_counter
-    # Name se space aur special characters handle karne ke liye clean name
-    base_name = name.split(".")[0].strip()
+    print(download_cmd)
+    logging.info(download_cmd)
+    k = subprocess.run(download_cmd, shell=True)
+    if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
+        failed_counter += 1
+        await asyncio.sleep(5)
+        await download_video(url, cmd, name)
+    failed_counter = 0
+    try:
+        if os.path.isfile(name):
+            return name
+        elif os.path.isfile(f"{name}.webm"):
+            return f"{name}.webm"
+        name = name.split(".")[0]
+        if os.path.isfile(f"{name}.mkv"):
+            return f"{name}.mkv"
+        elif os.path.isfile(f"{name}.mp4"):
+            return f"{name}.mp4"
+        elif os.path.isfile(f"{name}.mp4.webm"):
+            return f"{name}.mp4.webm"
 
-    # FIX: Is line ko dhyan se dekho, humne "-o" template ko change kiya hai
-    # Taki yt-dlp auto-extension handle kare aur merge error na aaye
-    download_cmd = (
-        f'yt-dlp "{url}" '
+        return name
+    except FileNotFoundError as exc:
+        return os.path.isfile.splitext[0] + "." + "mp4"
+
+
+        
+async def download_and_decrypt_video(url, cmd, name, key):
+    # 1. Referer aur User-Agent setup
+    referer = ""
+    if "akstechnicalclasses" in url or "classx.co.in" in url:
+        referer = "https://akstechnicalclasses.classx.co.in/"
+    elif "appx" in url or "encrypted.m" in url:
+        referer = "https://player.akamai.net.in/"
+    
+    # Headers ko string mein convert karna
+    headers = f'--add-header "Referer:{referer}" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
+    
+    # 2. Alag se Download Logic (Original download_video ko chhede bina)
+    base_name = name.split(".")[0].strip()
+    
+    # Yahan humne direct yt-dlp command likh di hai
+    # Quotes aur %(ext)s ka use kiya hai taaki "More than one file" error na aaye
+    new_download_cmd = (
+        f'yt-dlp "{url}" {headers} {cmd} '
         f'-o "{base_name}.%(ext)s" '
-        f'{cmd} '
         '--no-part --no-check-certificate '
         '-R 25 --fragment-retries 25 '
         '--external-downloader aria2c '
         '--downloader-args "aria2c: -x 16 -j 32"'
     )
 
-    print(f"DEBUG CMD: {download_cmd}")
+    print(f"🚀 Running Special Download: {new_download_cmd}")
     
-    # Aapka original subprocess call
-    k = subprocess.run(download_cmd, shell=True)
-
-    if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
-        failed_counter += 1
-        await asyncio.sleep(5)
-        return await download_video(url, cmd, name)
-
-    failed_counter = 0
-
-    # File dhoondhne ka logic (Aapka logic update kiya hai)
-    try:
-        # Check all possible downloaded extensions
-        for ext in [".mkv", ".mp4", ".webm", ".ts"]:
-            path = f"{base_name}{ext}"
-            if os.path.isfile(path):
-                return path
-        
-        # Agar exact name exist karta hai
-        if os.path.isfile(name):
-            return name
+    # Download execute karna
+    import subprocess
+    process = subprocess.run(new_download_cmd, shell=True)
+    
+    # 3. Downloaded File ko find karna
+    video_path = None
+    for ext in [".mkv", ".mp4", ".ts", ".webm"]:
+        path = f"{base_name}{ext}"
+        if os.path.exists(path):
+            video_path = path
+            break
             
-        return None
-    except Exception:
-        return None
-
-        
-async def download_and_decrypt_video(url, cmd, name, key: bytes):
-    # 1. Referer setup (Strictly as per 1DM)
-    if "akstechnicalclasses" in url or "classx.co.in" in url:
-        referer = "https://akstechnicalclasses.classx.co.in/"
-        cmd += f' --add-header "Referer:{referer}"'
-    elif "appx" in url or "encrypted.m" in url:
-        referer = "https://player.akamai.net.in/"
-        cmd += f' --add-header "Referer:{referer}"'
-    
-    # 2. Browser Agent (Zaroori hai 403 se bachne ke liye)
-    cmd += ' --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
-
-    # 3. Download Process
-    video_path = await download_video(url, cmd, name)
-    
+    # 4. Decrypt Logic (Aapka original structure)
     if video_path:
-        # 4. Decrypt Process
         decrypted = decrypt_file(video_path, key)
         if decrypted:
-            print(f"✅ Success: {video_path}")
+            print(f"✅ File {video_path} decrypted successfully.")
             return video_path
-    
-    print("❌ Process Failed.")
-    return None
-    
+        else:
+            print(f"❌ Failed to decrypt {video_path}.")
+            return None
+    else:
+        print("❌ Download failed even with referer.")
+        return None
+        
         
 
 
