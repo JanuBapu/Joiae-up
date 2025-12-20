@@ -249,22 +249,7 @@ async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name, chan
     time.sleep(3) 
 
 
-def decrypt_file(file_path, key: bytes):
-    if not os.path.exists(file_path):
-        return None
 
-    # Output decrypted file path
-    base, ext = os.path.splitext(file_path)
-    decrypted_path = f"{base}.decrypted{ext}"
-
-    with open(file_path, "r+b") as f:
-        num_bytes = min(28, os.path.getsize(file_path))
-        with mmap.mmap(f.fileno(), length=num_bytes, access=mmap.ACCESS_WRITE) as mmapped_file:
-            for i in range(num_bytes):
-                mmapped_file[i] ^= key[i] if i < len(key) else i
-
-    # For simplicity, return same file path (in‑place decrypt)
-    return file_path
 
 
 async def download_video(url,cmd, name):
@@ -291,85 +276,92 @@ async def download_video(url,cmd, name):
         elif os.path.isfile(f"{name}.mp4.webm"):
             return f"{name}.mp4.webm"
 
-        return name
-    except FileNotFoundError as exc:
-        return os.path.isfile.splitext[0] + "." + "mp4"
+  import os
+import mmap
 
+def decrypt_file(file_path, key: bytes):
+    if not os.path.exists(file_path):
+        print(f"❌ File not found: {file_path}")
+        return None
+
+    try:
+        with open(file_path, "r+b") as f:
+            num_bytes = min(28, os.path.getsize(file_path))
+            with mmap.mmap(f.fileno(), length=num_bytes, access=mmap.ACCESS_WRITE) as mmapped_file:
+                for i in range(num_bytes):
+                    mmapped_file[i] ^= key[i] if i < len(key) else i
+        return file_path
+    except Exception as e:
+        print(f"❌ Decryption error: {e}")
+        return None      
 
         
 import subprocess
 import os
 import asyncio
-
 import subprocess
 import os
 import asyncio
 
 async def download_and_decrypt_video(url, cmd, name, key):
-    # 1. Base Name Setup (e.g., 001)
     base_name = name.split(".")[0].strip()
-    
-    # 2. Referer Fix (Strictly as per your 1DM screenshot)
-    if "akstechnicalclasses" in url:
-        referer = "https://akstechnicalclasses.classx.co.in/"
-    else:
-        referer = "https://player.akamai.net.in/"
-    
-    # 3. Clean CMD (yt-dlp word double hone se bachne ke liye)
+
+    # 1. Referer logic
+    referer = (
+        "https://akstechnicalclasses.classx.co.in/"
+        if "akstechnicalclasses" in url
+        else "https://player.akamai.net.in/"
+    )
+
+    # 2. Clean cmd
     clean_cmd = cmd.replace("yt-dlp", "").strip()
 
-    # 4. FINAL BULLET-PROOF COMMAND
-    # - Aria2c hata diya hai kyunki wo 403 error de raha hai.
-    # - %(ext)s rakha hai taaki server wali asli extension (.mkv) save ho.
-    # - URL ko hamesha quotes "" mein rakha hai.
+    # 3. Final yt-dlp command
     final_cmd = (
         f'yt-dlp "{url}" '
         f'--add-header "Referer:{referer}" '
         f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
         f'-o "{base_name}.%(ext)s" '
         f'{clean_cmd} '
-        '--no-part --no-check-certificate --fixup never -R 25 --fragment-retries 25'
+        '--no-playlist --force-generic-extractor '
+        '--no-part --no-check-certificate --fixup never '
+        '-R 25 --fragment-retries 25'
     )
 
     print(f"🚀 Downloading: {base_name} ... Please wait.")
-    
-    # 5. Execution
+    print(f"▶️ CMD: {final_cmd}")
+
     try:
-        # Direct yt-dlp download
         subprocess.run(final_cmd, shell=True, check=True)
     except Exception as e:
         print(f"❌ Download Command Error: {e}")
+        return None
 
-    # 6. DYNAMIC FILE SEARCH (Asli file dhoondhna)
-    # 
+    # 4. Find downloaded file
     video_path = None
-    # Server .mkv dega toh ye loop use dhoondh lega
     for ext in [".mkv", ".mp4", ".ts", ".webm"]:
         potential_file = f"{base_name}{ext}"
         if os.path.exists(potential_file):
             video_path = potential_file
             break
 
-    # 7. DECRYPTION (Download hone ke baad)
-    if video_path:
-        print(f"✅ Found File: {video_path}. Now Decrypting...")
-        
-        # Key string hai toh bytes mein convert karein
-        key_bytes = key.encode() if isinstance(key, str) else key
-        
-        # Aapka original decrypt function call
-        decrypted_path = decrypt_file(video_path, key_bytes)
-        
-        if decrypted_path:
-            print(f"🔓 Success: File is ready!")
-            return decrypted_path
-        else:
-            print("❌ Decryption failed. Key check karein.")
-            return None
-    else:
-        # Yahan tabhi aayega jab download fail ho
-        print("❌ Error: Download fail ho gaya. Link shayad expire ho gayi hai.")
+    if not video_path:
+        print("❌ Error: Download failed or file not found.")
         return None
+
+    print(f"✅ Found File: {video_path}. Now Decrypting...")
+
+    # 5. Decrypt
+    key_bytes = key.encode() if isinstance(key, str) else key
+    decrypted_path = decrypt_file(video_path, key_bytes)
+
+    if decrypted_path:
+        print(f"🔓 Success: File ready → {decrypted_path}")
+        return decrypted_path
+    else:
+        print("❌ Decryption failed. Check key or file.")
+        return None
+
 
         
         
