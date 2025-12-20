@@ -289,12 +289,20 @@ import asyncio
 
 import asyncio
 
+import asyncio
+
 async def download_and_decrypt_video(url, cmd, name, key):
     try:
-        # Agar AppX URL hai to cmd me referer inject karo
+        # Agar AppX URL hai to referer inject karo
         if "appx" in url:
             cmd = (
-                f'{cmd} --downloader-args "aria2c: -x 16 -j 32 --header=\\"Referer: https://akstechnicalclasses.classx.co.in/\\""'
+                f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c '
+                f'--downloader-args "aria2c: -x 16 -j 32 --header=Referer: https://akstechnicalclasses.classx.co.in/"'
+            )
+        else:
+            cmd = (
+                f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c '
+                f'--downloader-args "aria2c: -x 16 -j 32"'
             )
 
         # Tumhara existing download_video call
