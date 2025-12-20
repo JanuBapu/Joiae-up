@@ -276,8 +276,7 @@ async def download_video(url,cmd, name):
         elif os.path.isfile(f"{name}.mp4.webm"):
             return f"{name}.mp4.webm"
 
-import os
-import mmap
+
 
 def decrypt_file(file_path, key: bytes):
     if not os.path.exists(file_path):
@@ -296,12 +295,7 @@ def decrypt_file(file_path, key: bytes):
         return None      
 
         
-import subprocess
-import os
-import asyncio
-import subprocess
-import os
-import asyncio
+
 
 async def download_and_decrypt_video(url, cmd, name, key):
     base_name = name.split(".")[0].strip()
