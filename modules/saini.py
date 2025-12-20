@@ -297,72 +297,76 @@ async def download_video(url,cmd, name):
 
 
         
-async def download_and_decrypt_video(url, cmd, name, key):
-    import subprocess
-    import os
+import subprocess
+import os
+import asyncio
 
-    # 1. Base Name Setup (Aapka clean filename)
+async def download_and_decrypt_video(url, cmd, name, key):
+    # 1. Base Name Setup (001)
     base_name = name.split(".")[0].strip()
     
-    # 2. REFERER LOGIC (1DM Screenshot ke mutabiq exact setup)
-    if "akstechnicalclasses" in url or "classx.co.in" in url:
+    # 2. Referer Setup (Strict for AKS as per your 1DM)
+    if "akstechnicalclasses" in url:
         referer = "https://akstechnicalclasses.classx.co.in/"
     else:
         referer = "https://player.akamai.net.in/"
     
-    # 3. Clean CMD (Double 'yt-dlp' word error fix)
+    # 3. CMD Clean (yt-dlp double word hatao)
     clean_cmd = cmd.replace("yt-dlp", "").strip()
 
-    # 4. FINAL COMMAND FORMATION
-    # Yahan humne %(ext)s rakha hai taki yt-dlp server se milne wale .mkv ko bina merge error ke download kare
-    # URL ko quotes "" mein rakha hai taki Signature (&) break na ho
+    # 4. Final Bullet-Proof Command
+    # 
+    # Yahan "%(ext)s" zaroori hai taki mkv vs mp4 ka jhanjhat khatam ho jaye
     final_cmd = (
         f'yt-dlp "{url}" '
         f'--add-header "Referer:{referer}" '
         f'--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" '
         f'-o "{base_name}.%(ext)s" '
         f'{clean_cmd} '
-        '--no-part --no-check-certificate -R 25 --fragment-retries 25 '
+        '--no-part --no-check-certificate --fixup never '
+        '-R 25 --fragment-retries 25 '
         '--external-downloader aria2c --downloader-args "aria2c:-x 16 -j 32"'
     )
 
-    print(f"🚀 Starting Download: {base_name}")
+    print(f"🚀 Integrated Download Start: {base_name}")
     
-    # 5. EXECUTION (Download Start)
-    subprocess.run(final_cmd, shell=True)
+    # 5. Execution
+    try:
+        # shell=True zaroori hai quotes handle karne ke liye
+        subprocess.run(final_cmd, shell=True, check=True)
+    except Exception as e:
+        print(f"❌ Subprocess error: {e}")
 
-    # 6. DYNAMIC FILE SEARCH (Extension checking logic)
+    # 6. DYNAMIC FILE SEARCH (Extension logic)
     # 
     video_path = None
-    # Server mkv de ya mp4, hum dhoondh nikalenge
+    # Server mkv dega toh .mkv dhoondhega, mp4 dega toh .mp4
     for ext in [".mkv", ".mp4", ".ts", ".webm"]:
         potential_file = f"{base_name}{ext}"
         if os.path.exists(potential_file):
             video_path = potential_file
             break
 
-    # 7. DECRYPTION (Download ke turant baad)
+    # 7. DECRYPTION (Download ke baad turant)
     if video_path:
-        print(f"✅ Download Finished: {video_path}")
+        print(f"✅ Found File: {video_path}")
         
         # Key string hai toh bytes mein convert karein
         key_bytes = key.encode() if isinstance(key, str) else key
         
-        # Decrypt call (Aapka original function)
+        # Aapka original decrypt function call karein
         decrypted_path = decrypt_file(video_path, key_bytes)
         
         if decrypted_path:
-            print(f"🔓 Decrypted Successfully: {decrypted_path}")
+            print(f"🔓 Success: Decrypted {decrypted_path}")
             return decrypted_path
         else:
             print("❌ Decryption failed.")
             return None
     else:
-        # Agar yahan tak aaya matlab 403 error ya network issue hai
-        print("❌ Error: Download fail ho gaya. Link expire ho sakti hai.")
+        print("❌ Error: Download failed (403 Forbidden or Link Expired).")
         return None
-
-    
+        
         
         
 
