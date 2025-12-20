@@ -298,17 +298,24 @@ async def download_video(url,cmd, name):
 
         
 async def download_and_decrypt_video(url, cmd, name, key):
-    # 1. Base name saaf karna (spaces aur special characters ke liye)
-    base_name = name.split(".")[0].strip()
-    
-    # 2. Referer aur User-Agent fix (AKS ke liye strict)
-    referer = "https://akstechnicalclasses.classx.co.in/" if "akstechnicalclasses" in url else "https://player.akamai.net.in/"
-    
-    # Hum 'yt-dlp' word ko cmd se hata rahe hain agar wo pehle se wahan hai
+    # 1. COMMAND CLEANING
+    # Aapke cmd mein agar 'yt-dlp' pehle se hai, toh use saaf karna zaroori hai
     clean_cmd = cmd.replace("yt-dlp", "").strip()
     
-    # 3. Independent Command (Ye kisi aur function par depend nahi hai)
-    # Quotes ka use kiya hai taaki '&' symbols link ko na todein
+    # 2. REFERER LOGIC (AKS Technical Classes Fix)
+    # 1DM screenshot ke mutabiq exact referer
+    if "akstechnicalclasses" in url or "classx.co.in" in url:
+        referer = "https://akstechnicalclasses.classx.co.in/"
+    else:
+        referer = "https://player.akamai.net.in/"
+    
+    # 3. FILENAME SETUP
+    # Extension %(ext)s pe chhodna hai taaki yt-dlp conflict na kare
+    base_name = name.split(".")[0].strip()
+    
+    # 4. FINAL COMMAND FORMATION
+    # URL ko quotes "" mein dala hai taaki Signature (&) break na ho
+    # 
     final_cmd = (
         f'yt-dlp "{url}" '
         f'--add-header "Referer:{referer}" '
@@ -319,32 +326,44 @@ async def download_and_decrypt_video(url, cmd, name, key):
         '--external-downloader aria2c --downloader-args "aria2c:-x 16 -j 32"'
     )
 
-    print(f"🚀 Downloading: {name}")
-    import subprocess
+    print(f"DEBUG: Running Command -> {final_cmd}")
     
-    # Download start
+    # 5. EXECUTION
+    import subprocess
+    import os
+    
+    # Download shuru
     result = subprocess.run(final_cmd, shell=True)
     
-    # 4. Downloaded file dhoondhna
+    # 6. DYNAMIC FILE SEARCH (More than one file error ka solution)
+    # Download ke baad check karna ki yt-dlp ne kaunsi file banayi hai
     video_path = None
     for ext in [".mkv", ".mp4", ".ts", ".webm"]:
-        temp_path = f"{base_name}{ext}"
-        if os.path.exists(temp_path):
-            video_path = temp_path
+        potential_path = f"{base_name}{ext}"
+        if os.path.exists(potential_path):
+            video_path = potential_path
             break
-    
-    # 5. Decrypt Logic
+            
+    # 7. DECRYPTION (Download ke turant baad)
     if video_path:
-        # Key ko bytes mein convert karna (agar string hai toh)
+        print(f"✅ Download Complete: {video_path}")
+        
+        # Key bytes handling
         key_bytes = key.encode() if isinstance(key, str) else key
         
-        decrypted = decrypt_file(video_path, key_bytes)
-        if decrypted:
-            print(f"✅ Decrypted Successfully: {video_path}")
+        # Aapka original decrypt function
+        decrypted_path = decrypt_file(video_path, key_bytes)
+        
+        if decrypted_path:
+            print(f"🔓 Decryption Success!")
             return video_path
-    
-    print("❌ Download ya Decryption fail ho gaya.")
-    return None
+        else:
+            print("❌ Decryption failed.")
+            return None
+    else:
+        print("❌ Error: Download failed. Check Referer or Link Expiry.")
+        return None
+        
     
         
         
