@@ -233,7 +233,7 @@ def time_name():
     return f"{date} {current_time}.mp4"
 
 
-async def download_video(url,cmd, name):
+async def download_video(url, cmd, name):
     download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
     global failed_counter
     print(download_cmd)
@@ -259,8 +259,8 @@ async def download_video(url,cmd, name):
 
         return name
     except FileNotFoundError as exc:
-        return os.path.isfile.splitext[0] + "." + "mp4"
-
+        print(f"Error: {exc}")   # error print karega
+        return f"{os.path.splitext(name)[0]}.mp4"
 
 async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name, channel_id):
     reply = await bot.send_message(channel_id, f"Downloading pdf:\n<pre><code>{name}</code></pre>")
@@ -300,7 +300,8 @@ async def download_and_decrypt_video(url, cmd, name, key):
 
     video_path = await download_video(url, cmd, name)
 
-    if video_path:
+    # Ensure we got a valid file path before decrypting
+    if video_path and os.path.isfile(video_path):
         decrypted = decrypt_file(video_path, key)
         if decrypted:
             print(f"File {video_path} decrypted successfully.")
@@ -309,7 +310,7 @@ async def download_and_decrypt_video(url, cmd, name, key):
             print(f"Failed to decrypt {video_path}.")
             return None
     else:
-        print("Video download failed.")
+        print("Video download failed or file not found.")
         return None
 
 
