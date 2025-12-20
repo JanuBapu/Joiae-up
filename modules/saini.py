@@ -291,18 +291,20 @@ import asyncio
 
 async def download_and_decrypt_video(url, cmd, name, key):
     try:
-        # Agar URL me 'appx' hai to referer header use karo
+        # Agar AppX URL hai to cmd me referer inject karo
         if "appx" in url:
-            video_path = await download_video_referer(
-                url, cmd, name, referer="https://akstechnicalclasses.classx.co.in/"
+            cmd = (
+                f'{cmd} --downloader-args "aria2c: -x 16 -j 32 --header=\\"Referer: https://akstechnicalclasses.classx.co.in/\\""'
             )
-        else:
-            video_path = await download_video(url, cmd, name)  # tumhara existing function
+
+        # Tumhara existing download_video call
+        video_path = await download_video(url, cmd, name)
 
         if not video_path:
             print(f"[ERROR] Download failed for URL: {url}")
             return None
 
+        # Decrypt stage
         decrypted = decrypt_file(video_path, key)
         if decrypted:
             print(f"[SUCCESS] File {video_path} decrypted successfully.")
@@ -316,36 +318,9 @@ async def download_and_decrypt_video(url, cmd, name, key):
         return None
 
 
-async def download_video_referer(url, cmd, name, referer):
-    # AppX download with referer header
-    download_cmd = (
-        f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c '
-        f'--downloader-args "aria2c: -x 16 -j 32 --header=\\"Referer: {referer}\\"" '
-        f'-o "{name}.mp4" "{url}"'
-    )
 
-    print("[DEBUG] Running command:", download_cmd)
 
-    try:
-        process = await asyncio.create_subprocess_shell(
-            download_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        stdout, stderr = await process.communicate()
-
-        if process.returncode == 0:
-            print(f"[SUCCESS] Downloaded {name}.mp4 with referer {referer}")
-            return f"{name}.mp4"
-        else:
-            print(f"[ERROR] Download failed for {url} with referer {referer}")
-            print("[STDERR]", stderr.decode())
-            print("[STDOUT]", stdout.decode())
-            return None
-
-    except Exception as e:
-        print(f"[EXCEPTION] Unexpected error in download_video_referer: {e}")
-        return None
+    
 async def send_vid(bot: Client, m: Message, cc, filename, vidwatermark, thumb, name, prog, channel_id):
     subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 "{filename}.jpg"', shell=True)
     await prog.delete (True)
