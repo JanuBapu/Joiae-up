@@ -269,65 +269,69 @@ def decrypt_file(file_path, key: bytes):
 
 
 async def download_video(url, cmd, name):
-    # FIX: yt-dlp, url aur output template add kiya gaya hai
-    # Quotes ("") lagaye hain taaki lambi link break na ho
-    download_cmd = f'yt-dlp "{url}" -o "{name}.%(ext)s" {cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
-    
+    # Base name nikal rahe hain (split('.') isliye taaki agar extension pehle se ho toh hat jaye)
+    base_name = name.split(".")[0].strip()
+
+    # FIX: Is command mein "yt-dlp", "{url}" aur output template "%(ext)s" add kiya hai
+    # Taki yt-dlp auto-extension decide kare aur merge error na aaye
+    download_cmd = (
+        f'yt-dlp "{url}" '
+        f'-o "{base_name}.%(ext)s" '
+        f'{cmd} '
+        '-R 25 --fragment-retries 25 '
+        '--external-downloader aria2c '
+        '--downloader-args "aria2c: -x 16 -j 32"'
+    )
+
     global failed_counter
-    print(download_cmd)
+    print(f"DEBUG COMMAND: {download_cmd}")
     logging.info(download_cmd)
-    
-    # Subprocess call (Aapka original method)
+
+    # Subprocess execution
     k = subprocess.run(download_cmd, shell=True)
-    
+
     # Retry logic (VisionIAS)
     if "visionias" in cmd and k.returncode != 0 and failed_counter <= 10:
         failed_counter += 1
         await asyncio.sleep(5)
-        # Fix: Yahan 'return' lagana zaroori hai
         return await download_video(url, cmd, name)
-    
+
     failed_counter = 0
-    
+
+    # File checking logic (Aapka logic optimized)
     try:
-        # File checking logic (Aapka original format)
+        # 1. Direct check
         if os.path.isfile(name):
             return name
-        elif os.path.isfile(f"{name}.webm"):
-            return f"{name}.webm"
-            
-        # Extension checking logic
-        base_name = name.split(".")[0]
-        if os.path.isfile(f"{base_name}.mkv"):
-            return f"{base_name}.mkv"
-        elif os.path.isfile(f"{base_name}.mp4"):
-            return f"{base_name}.mp4"
-        elif os.path.isfile(f"{base_name}.mp4.webm"):
-            return f"{base_name}.mp4.webm"
-
+        
+        # 2. Check with extensions (Kyuki yt-dlp decide karega extension)
+        for ext in [".mkv", ".mp4", ".webm", ".ts"]:
+            candidate = f"{base_name}{ext}"
+            if os.path.isfile(candidate):
+                return candidate
+        
+        # 3. Fallback to original name
         return name
+        
     except Exception as exc:
-        # Fallback
+        print(f"File check error: {exc}")
         return name
         
-        
-
-
 async def download_and_decrypt_video(url, cmd, name, key: bytes):
-    # REFERER FIX: AKS Technical Classes ke liye strict referer
-    if "akstechnicalclasses" in url or "appx.co.in" in url:
+    # Strict Referer Header (As per your 1DM screenshot)
+    if "akstechnicalclasses" in url or "classx.co.in" in url:
         cmd += ' --add-header "Referer:https://akstechnicalclasses.classx.co.in/"'
     elif "appx" in url or "encrypted.m" in url or "dragoapi.vercel.app" in url:
         cmd += ' --add-header "Referer:https://player.akamai.net.in/"'
     
-    # User-Agent add karna 403 Forbidden se bachne ke liye zaruri hai
-    cmd += ' --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
+    # User-Agent add karna compulsory hai server verification ke liye
+    cmd += ' --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"'
 
-    # Download call
+    # Original function call
     video_path = await download_video(url, cmd, name)
     
     if video_path:
-        # Decrypt call (Aapka original logic)
+        # Decrypt call (Aapka original structure)
         decrypted = decrypt_file(video_path, key)
         if decrypted:
             print(f"File {video_path} decrypted successfully.")
