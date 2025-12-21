@@ -275,17 +275,17 @@ async def download_video(url, cmd, name):
 import subprocess
 import os
 
-async def download_with_1dm_style(url, name):
-    """
-    1DM-style download: use ffmpeg directly with referer header to grab HLS stream and save as mp4.
-    """
-    output_file = f"{name}.mp4"
+
+async def downloadwith1dm_style(url, name):
+    output_file = f"{name}.mkv"
+
     cmd = [
         "ffmpeg",
-        "-headers", "Referer: https://akstechnicalclasses.classx.co.in/",
+        "-user_agent", "Mozilla/5.0 (Linux; Android 13)",
+        "-headers",
+        "Referer: https://akstechnicalclasses.classx.co.in/\r\n",
         "-i", url,
         "-c", "copy",
-        "-bsf:a", "aac_adtstoasc",
         output_file
     ]
 
@@ -295,13 +295,12 @@ async def download_with_1dm_style(url, name):
     if result.returncode == 0 and os.path.isfile(output_file):
         return output_file
     else:
-        print("1DM-style download failed.")
+        print("Download failed.")
         return None
-
 
 async def download_and_decrypt_video(url, cmd, name, key):
     # Instead of calling download_video, use the new 1DM-style downloader
-    video_path = await download_with_1dm_style(url, name)
+    video_path = await downloadwith1dm_style(url, name)
 
     if video_path and os.path.isfile(video_path):
         decrypted = decrypt_file(video_path, key)
