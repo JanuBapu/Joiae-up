@@ -287,7 +287,44 @@ import os
 import requests
 from tqdm import tqdm  # progress bar
 
-def download_raw_file(url, filename):
+import os
+import mmap
+import requests
+from tqdm import tqdm
+from base64 import b64decode
+
+# ==============================
+# FILE DECRYPT FUNCTION
+# ==============================
+def decrypt_file(file_path: str, key: str) -> bool:
+    """
+    Decrypts first 28 bytes of the file using key.
+    If key is None or empty, decryption is skipped.
+    """
+    if not os.path.exists(file_path):
+        print(f"❌ File not found: {file_path}")
+        return False
+
+    if not key:
+        print("⚠️ No key provided, skipping decryption")
+        return True
+
+    key_bytes = key.encode()
+    size = min(28, os.path.getsize(file_path))
+
+    with open(file_path, "r+b") as f:
+        with mmap.mmap(f.fileno(), length=size, access=mmap.ACCESS_WRITE) as mm:
+            for i in range(size):
+                mm[i] ^= key_bytes[i] if i < len(key_bytes) else i
+
+    print(f"✅ File decrypted: {file_path}")
+    return True
+
+
+# ==============================
+# RAW FILE DOWNLOAD
+# ==============================
+def download_raw_file(url: str, filename: str) -> str | None:
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
         "Referer": "https://akstechnicalclasses.classx.co.in/",
@@ -299,28 +336,39 @@ def download_raw_file(url, filename):
     file_path = f"downloads/{filename}.mkv"
 
     try:
-        with requests.get(url, headers=headers, stream=True, timeout=30) as r:
-            r.raise_for_status()  # HTTP errors raise exception
-            total_size = int(r.headers.get('content-length', 0))
-            chunk_size = 1024 * 1024  # 1 MB
+        with requests.get(url, headers=headers, stream=True, timeout=40) as r:
+            r.raise_for_status()
+            total = int(r.headers.get("content-length", 0))
 
             with open(file_path, "wb") as f, tqdm(
-                total=total_size, unit='B', unit_scale=True, desc=filename, ncols=80
-            ) as pbar:
-                for chunk in r.iter_content(chunk_size=chunk_size):
+                total=total,
+                unit="B",
+                unit_scale=True,
+                desc=filename,
+                ncols=80
+            ) as bar:
+                for chunk in r.iter_content(chunk_size=1024*1024):
                     if chunk:
                         f.write(chunk)
-                        pbar.update(len(chunk))
+                        bar.update(len(chunk))
 
-        print(f"\n✅ Download complete: {file_path}")
+        print(f"✅ Download complete: {file_path}")
         return file_path
 
-    except requests.exceptions.RequestException as e:
-        print(f"\n❌ Download failed: {e}")
+    except Exception as e:
+        print(f"❌ Download failed: {e}")
         return None
 
 
-def download_and_decrypt_video(url, name, key, cmd=None):
+# ==============================
+# DOWNLOAD + DECRYPT WRAPPER
+# ==============================
+def download_and_decrypt_video(url: str, name: str, key: str = None, cmd=None) -> str | None:
+    """
+    Mimics your original function logic:
+    1. Download video from URL
+    2. Decrypt using key if provided
+    """
     video_path = download_raw_file(url, name)
 
     if video_path and os.path.isfile(video_path):
@@ -334,28 +382,25 @@ def download_and_decrypt_video(url, name, key, cmd=None):
     else:
         print("❌ Video download failed or file not found.")
         return None
+
+
+# ==============================
+# EXAMPLE USAGE
+# ==============================
+
+
 async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name, channel_id):
     reply = await bot.send_message(channel_id, f"Downloading pdf:\n<pre><code>{name}</code></pre>")
     time.sleep(1)
     start_time = time.time()
     await bot.send_document(ka, caption=cc1)
-    count+=1
+    count+=1l
     await reply.delete (True)
     time.sleep(1)
     os.remove(ka)
     time.sleep(3) 
 
 
-def decrypt_file(file_path, key):  
-    if not os.path.exists(file_path): 
-        return False  
-
-    with open(file_path, "r+b") as f:  
-        num_bytes = min(28, os.path.getsize(file_path))  
-        with mmap.mmap(f.fileno(), length=num_bytes, access=mmap.ACCESS_WRITE) as mmapped_file:  
-            for i in range(num_bytes):  
-                mmapped_file[i] ^= ord(key[i]) if i < len(key) else i 
-    return True  
 
 import asyncio
 
