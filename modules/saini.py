@@ -280,6 +280,10 @@ import os
 import requests
 import os
 
+import requests
+import os
+from tqdm import tqdm
+
 def download_raw_file(url, filename):
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
@@ -291,35 +295,41 @@ def download_raw_file(url, filename):
     os.makedirs("downloads", exist_ok=True)
     file_path = f"downloads/{filename}.mkv"
 
-    with requests.get(url, headers=headers, stream=True, timeout=30) as r:
-        if r.status_code != 200:
-            print("❌ Download failed:", r.status_code)
-            return None
+    try:
+        with requests.get(url, headers=headers, stream=True, timeout=30) as r:
+            r.raise_for_status()  # HTTP errors will raise exception
+            total_size = int(r.headers.get('content-length', 0))
+            chunk_size = 1024 * 1024  # 1 MB
 
-        with open(file_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    f.write(chunk)
+            # tqdm progress bar
+            with open(file_path, "wb") as f, tqdm(
+                total=total_size, unit='B', unit_scale=True, desc=filename, ncols=80
+            ) as pbar:
+                for chunk in r.iter_content(chunk_size=chunk_size):
+                    if chunk:
+                        f.write(chunk)
+                        pbar.update(len(chunk))
 
-    return file_path
+        print(f"\n✅ Download complete: {file_path}")
+        return file_path
 
+    except requests.exceptions.RequestException as e:
+        print(f"\n❌ Download failed: {e}")
+        return None
 
-async def download_and_decrypt_video(url, cmd, name, key):
-    # Step 1: Download file (1DM-style raw download)
-    video_path = await download_raw_file(url, name)
+def download_and_decrypt_video(url, name, key):
+    video_path = download_raw_file(url, name)  # normal call
 
-    # Step 2: Check file exists
     if video_path and os.path.isfile(video_path):
         decrypted = decrypt_file(video_path, key)
-
         if decrypted:
-            print(f"File {video_path} decrypted successfully.")
+            print(f"✅ File {video_path} decrypted successfully.")
             return video_path
         else:
-            print(f"Failed to decrypt {video_path}.")
+            print(f"❌ Failed to decrypt {video_path}.")
             return None
     else:
-        print("Video download failed or file not found.")
+        print("❌ Video download failed or file not found.")
         return None
 async def send_doc(bot: Client, m: Message, cc, ka, cc1, prog, count, name, channel_id):
     reply = await bot.send_message(channel_id, f"Downloading pdf:\n<pre><code>{name}</code></pre>")
