@@ -277,26 +277,31 @@ import os
 
 import subprocess
 import os
+import requests
+import os
 
-async def download_raw_file(url, name):
-    output_file = f"{name}.mkv"
+def download_raw_file(url, filename):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
+        "Referer": "https://akstechnicalclasses.classx.co.in/",
+        "Origin": "https://akstechnicalclasses.classx.co.in",
+        "Accept": "*/*"
+    }
 
-    cmd = [
-        "curl",
-        "-L",
-        "-A", "Mozilla/5.0 (Linux; Android 13)",
-        "-H", "Referer: https://akstechnicalclasses.classx.co.in/",
-        "-o", output_file,
-        url
-    ]
+    os.makedirs("downloads", exist_ok=True)
+    file_path = f"downloads/{filename}.mkv"
 
-    print("Running:", " ".join(cmd))
-    result = subprocess.run(cmd)
+    with requests.get(url, headers=headers, stream=True, timeout=30) as r:
+        if r.status_code != 200:
+            print("❌ Download failed:", r.status_code)
+            return None
 
-    if result.returncode == 0 and os.path.exists(output_file):
-        return output_file
-    else:
-        return None
+        with open(file_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    f.write(chunk)
+
+    return file_path
 
 
 async def download_and_decrypt_video(url, cmd, name, key):
