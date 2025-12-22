@@ -217,7 +217,77 @@ def old_download(url, file_name, chunk_size = 1024 * 10):
                 fd.write(chunk)
     return file_name
 
+# appx zip ke liye 
+# helper.py
 
+import os, requests, zipfile, subprocess
+
+async def download_drago_mkv(url: str, name: str) -> str:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
+        "Accept": "*/*",
+        "Referer": "https://akstechnicalclasses.classx.co.in/",
+        "Origin": "https://akstechnicalclasses.classx.co.in",
+    }
+
+    os.makedirs("downloads", exist_ok=True)
+
+    # 🔹 STEP 1: FINAL URL AUTO RESOLVE
+    r = requests.get(url, headers=headers, allow_redirects=True, timeout=15)
+    final_url = r.url
+
+    # 🔹 STEP 2: FILE TYPE CHECK
+    if final_url.endswith(".zip"):
+        zip_path = f"downloads/{name}.zip"
+        _download(final_url, zip_path, headers)
+
+        extract_dir = zip_path.replace(".zip", "")
+        _extract_zip(zip_path, extract_dir)
+
+        output = f"downloads/{name}.mp4"
+        _merge_ts(extract_dir, output)
+        return output
+
+    else:
+        out_file = f"downloads/{name}.mkv"
+        _download(final_url, out_file, headers)
+        return out_file
+
+
+def _download(url, path, headers):
+    with requests.get(url, headers=headers, stream=True) as r:
+        r.raise_for_status()
+        with open(path, "wb") as f:
+            for chunk in r.iter_content(256 * 1024):
+                if chunk:
+                    f.write(chunk)
+
+
+def _extract_zip(zip_path, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "r") as z:
+        z.extractall(out_dir)
+
+
+def _merge_ts(folder, output):
+    ts_files = sorted(
+        f for f in os.listdir(folder)
+        if f.endswith((".ts", ".tse"))
+    )
+
+    list_file = os.path.join(folder, "list.txt")
+    with open(list_file, "w") as f:
+        for ts in ts_files:
+            f.write(f"file '{os.path.join(folder, ts)}'\n")
+
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", list_file,
+        "-c", "copy",
+        output
+    ], check=True)
 def human_readable_size(size, decimal_places=2):
     for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB']:
         if size < 1024.0 or unit == 'PB':
