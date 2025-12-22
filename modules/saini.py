@@ -222,54 +222,21 @@ def old_download(url, file_name, chunk_size = 1024 * 10):
 
 import os, requests, zipfile, subprocess
 
-async def download_drago_mkv(url: str, name: str) -> str:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
-        "Accept": "*/*",
-        "Referer": "https://akstechnicalclasses.classx.co.in/",
-        "Origin": "https://akstechnicalclasses.classx.co.in",
-    }
+import zipfile
 
-    os.makedirs("downloads", exist_ok=True)
+def extract_zip(zip_path: str) -> str:
+    extract_dir = zip_path.replace(".zip", "")
+    os.makedirs(extract_dir, exist_ok=True)
 
-    # 🔹 STEP 1: FINAL URL AUTO RESOLVE
-    r = requests.get(url, headers=headers, allow_redirects=True, timeout=15)
-    final_url = r.url
-
-    # 🔹 STEP 2: FILE TYPE CHECK
-    if final_url.endswith(".zip"):
-        zip_path = f"downloads/{name}.zip"
-        _download(final_url, zip_path, headers)
-
-        extract_dir = zip_path.replace(".zip", "")
-        _extract_zip(zip_path, extract_dir)
-
-        output = f"downloads/{name}.mp4"
-        _merge_ts(extract_dir, output)
-        return output
-
-    else:
-        out_file = f"downloads/{name}.mkv"
-        _download(final_url, out_file, headers)
-        return out_file
-
-
-def _download(url, path, headers):
-    with requests.get(url, headers=headers, stream=True) as r:
-        r.raise_for_status()
-        with open(path, "wb") as f:
-            for chunk in r.iter_content(256 * 1024):
-                if chunk:
-                    f.write(chunk)
-
-
-def _extract_zip(zip_path, out_dir):
-    os.makedirs(out_dir, exist_ok=True)
     with zipfile.ZipFile(zip_path, "r") as z:
-        z.extractall(out_dir)
+        z.extractall(extract_dir)
+
+    return extract_dir
 
 
-def _merge_ts(folder, output):
+import subprocess
+
+def merge_ts_files(folder: str, output: str):
     ts_files = sorted(
         f for f in os.listdir(folder)
         if f.endswith((".ts", ".tse"))
@@ -288,6 +255,73 @@ def _merge_ts(folder, output):
         "-c", "copy",
         output
     ], check=True)
+
+    return output
+
+
+def download_drago_mkv(url: str, filename: str, ext: str) -> str | None:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
+        "Referer": "https://akstechnicalclasses.classx.co.in/",
+        "Origin": "https://akstechnicalclasses.classx.co.in",
+        "Accept": "*/*",
+        "Connection": "keep-alive"
+    }
+
+    os.makedirs("downloads", exist_ok=True)
+    file_path = f"downloads/{filename}.{ext}"
+
+    session = create_session()
+    downloaded = 0
+
+    if os.path.exists(file_path):
+        downloaded = os.path.getsize(file_path)
+        headers["Range"] = f"bytes={downloaded}-"
+
+    try:
+        with session.get(url, headers=headers, stream=True, timeout=(10, 180)) as r:
+            if r.status_code not in (200, 206):
+                print(f"❌ Bad status: {r.status_code}")
+                return None
+
+            total = int(r.headers.get("content-length", 0)) + downloaded
+            chunk_size = 256 * 1024
+
+            with open(file_path, "ab") as f, tqdm(
+                total=total,
+                initial=downloaded,
+                unit="B",
+                unit_scale=True,
+                desc=filename,
+                ncols=80
+            ) as bar:
+                for chunk in r.iter_content(chunk_size=chunk_size):
+                    if chunk:
+                        f.write(chunk)
+                        bar.update(len(chunk))
+
+        return file_path
+
+    except Exception as e:
+        print(f"⚠️ Download interrupted (resume enabled): {e}")
+        return file_path if os.path.exists(file_path) else None
+
+def download_drago_mkv(url: str, name: str) -> str | None:
+
+    # 🔹 resolve redirect
+    r = requests.get(url, allow_redirects=True, timeout=15)
+    final_url = r.url
+
+    # 🔹 ZIP case
+    if final_url.endswith(".zip"):
+        zip_path = download_raw_file(final_url, name, "zip")
+        folder = extract_zip(zip_path)
+        return merge_ts_files(folder, f"downloads/{name}.mp4")
+
+    # 🔹 MKV (encrypted) case
+    else:
+        return download_raw_file(final_url, name, "mkv")
+    
 def human_readable_size(size, decimal_places=2):
     for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB']:
         if size < 1024.0 or unit == 'PB':
