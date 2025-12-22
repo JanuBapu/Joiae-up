@@ -365,7 +365,7 @@ from base64 import b64decode
 # FILE DECRYPT FUNCTION
 # ==============================
 def decrypt_file(file_path: str, key: str) -> bool:
-    if not os.path.exists(file_path):
+    if not file_path or not os.path.exists(file_path):
         return False
 
     if not key:
@@ -380,7 +380,6 @@ def decrypt_file(file_path: str, key: str) -> bool:
                 mm[i] ^= key_bytes[i] if i < len(key_bytes) else i
 
     return True
-
 # ==============================
 # RAW FILE DOWNLOAD
 # ==============================
@@ -397,16 +396,24 @@ def download_raw_file(url: str, filename: str) -> str | None:
     file_path = f"downloads/{filename}.mkv"
 
     session = create_session()
+    downloaded = 0
+
+    if os.path.exists(file_path):
+        downloaded = os.path.getsize(file_path)
+        headers["Range"] = f"bytes={downloaded}-"
 
     try:
-        with session.get(url, headers=headers, stream=True, timeout=(10, 120)) as r:
-            r.raise_for_status()
-            total = int(r.headers.get("content-length", 0))
+        with session.get(url, headers=headers, stream=True, timeout=(10, 180)) as r:
+            if r.status_code not in (200, 206):
+                print(f"❌ Bad status: {r.status_code}")
+                return None
 
-            chunk_size = 256 * 1024  # 🔥 MOST STABLE
+            total = int(r.headers.get("content-length", 0)) + downloaded
+            chunk_size = 256 * 1024
 
-            with open(file_path, "wb") as f, tqdm(
+            with open(file_path, "ab") as f, tqdm(
                 total=total,
+                initial=downloaded,
                 unit="B",
                 unit_scale=True,
                 desc=filename,
@@ -420,19 +427,26 @@ def download_raw_file(url: str, filename: str) -> str | None:
         return file_path
 
     except Exception as e:
-        print(f"❌ Download failed: {e}")
-        return None
-
+        print(f"⚠️ Download interrupted (resume enabled): {e}")
+        return file_path if os.path.exists(file_path) else None
 # ==============================
 # DOWNLOAD + DECRYPT WRAPPER
 # ==============================
 
 def download_and_decrypt_video(url: str, name: str, key: str = None) -> str | None:
-    video_path = download_raw_file(url, name)
+    video_path = None
 
-    if video_path and os.path.isfile(video_path):
-        if decrypt_file(video_path, key):
-            return video_path
+    for _ in range(5):  # resume attempts
+        video_path = download_raw_file(url, name)
+        if video_path and os.path.getsize(video_path) > 10 * 1024 * 1024:
+            break
+
+    if not video_path:
+        return None
+
+    if decrypt_file(video_path, key):
+        return video_path
+
     return None
 
 # ==============================
