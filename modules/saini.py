@@ -321,14 +321,40 @@ async def download_video(url, cmd, name):
         print(f"Error: {exc}")
         return f"{os.path.splitext(name)[0]}.mp4"
 import os
+import os
+import time
+import mmap
+import asyncio
+import requests
+import subprocess
 
+from tqdm import tqdm
+from pyrogram import Client
+from pyrogram.types import Message
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import requests
 import os
 from tqdm import tqdm
 import os
 import requests
 from tqdm import tqdm  # progress bar
-
+def create_session():
+    session = requests.Session()
+    retries = Retry(
+        total=5,
+        backoff_factor=1.5,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"]
+    )
+    adapter = HTTPAdapter(
+        max_retries=retries,
+        pool_connections=10,
+        pool_maxsize=10
+    )
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 import os
 import mmap
 import requests
@@ -339,16 +365,10 @@ from base64 import b64decode
 # FILE DECRYPT FUNCTION
 # ==============================
 def decrypt_file(file_path: str, key: str) -> bool:
-    """
-    Decrypts first 28 bytes of the file using key.
-    If key is None or empty, decryption is skipped.
-    """
     if not os.path.exists(file_path):
-        print(f"❌ File not found: {file_path}")
         return False
 
     if not key:
-        print("⚠️ No key provided, skipping decryption")
         return True
 
     key_bytes = key.encode()
@@ -359,9 +379,7 @@ def decrypt_file(file_path: str, key: str) -> bool:
             for i in range(size):
                 mm[i] ^= key_bytes[i] if i < len(key_bytes) else i
 
-    print(f"✅ File decrypted: {file_path}")
     return True
-
 
 # ==============================
 # RAW FILE DOWNLOAD
@@ -371,16 +389,21 @@ def download_raw_file(url: str, filename: str) -> str | None:
         "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
         "Referer": "https://akstechnicalclasses.classx.co.in/",
         "Origin": "https://akstechnicalclasses.classx.co.in",
-        "Accept": "*/*"
+        "Accept": "*/*",
+        "Connection": "keep-alive"
     }
 
     os.makedirs("downloads", exist_ok=True)
     file_path = f"downloads/{filename}.mkv"
 
+    session = create_session()
+
     try:
-        with requests.get(url, headers=headers, stream=True, timeout=40) as r:
+        with session.get(url, headers=headers, stream=True, timeout=(10, 120)) as r:
             r.raise_for_status()
             total = int(r.headers.get("content-length", 0))
+
+            chunk_size = 256 * 1024  # 🔥 MOST STABLE
 
             with open(file_path, "wb") as f, tqdm(
                 total=total,
@@ -389,42 +412,28 @@ def download_raw_file(url: str, filename: str) -> str | None:
                 desc=filename,
                 ncols=80
             ) as bar:
-                for chunk in r.iter_content(chunk_size=1024*1024):
+                for chunk in r.iter_content(chunk_size=chunk_size):
                     if chunk:
                         f.write(chunk)
                         bar.update(len(chunk))
 
-        print(f"✅ Download complete: {file_path}")
         return file_path
 
     except Exception as e:
         print(f"❌ Download failed: {e}")
         return None
 
-
 # ==============================
 # DOWNLOAD + DECRYPT WRAPPER
 # ==============================
-def download_and_decrypt_video(url: str, name: str, key: str = None, cmd=None) -> str | None:
-    """
-    Mimics your original function logic:
-    1. Download video from URL
-    2. Decrypt using key if provided
-    """
+
+def download_and_decrypt_video(url: str, name: str, key: str = None) -> str | None:
     video_path = download_raw_file(url, name)
 
     if video_path and os.path.isfile(video_path):
-        decrypted = decrypt_file(video_path, key)
-        if decrypted:
-            print(f"✅ File {video_path} decrypted successfully.")
+        if decrypt_file(video_path, key):
             return video_path
-        else:
-            print(f"❌ Failed to decrypt {video_path}.")
-            return None
-    else:
-        print("❌ Video download failed or file not found.")
-        return None
-
+    return None
 
 # ==============================
 # EXAMPLE USAGE
@@ -456,35 +465,111 @@ import os
 
 
     
-async def send_vid(bot: Client, m: Message, cc, filename, vidwatermark, thumb, name, prog, channel_id):
-    subprocess.run(f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 "{filename}.jpg"', shell=True)
-    await prog.delete (True)
-    reply1 = await bot.send_message(channel_id, f"**📩 Uploading Video 📩:-**\n<blockquote>**{name}**</blockquote>")
-    reply = await m.reply_text(f"**Generate Thumbnail:**\n<blockquote>**{name}**</blockquote>")
-    try:
-        if thumb == "/d":
-            thumbnail = f"{filename}.jpg"
-        else:
-            thumbnail = thumb  
-        
-        if vidwatermark == "/d":
-            w_filename = f"{filename}"
-        else:
-            w_filename = f"w_{filename}"
-            font_path = "vidwater.ttf"
-            subprocess.run(
-                f'ffmpeg -i "{filename}" -vf "drawtext=fontfile={font_path}:text=\'{vidwatermark}\':fontcolor=white@0.3:fontsize=h/6:x=(w-text_w)/2:y=(h-text_h)/2" -codec:a copy "{w_filename}"',
-                shell=True
-            )
-            
-    except Exception as e:
-        await m.reply_text(str(e))
+import os
+import time
+import asyncio
+
+# 🔹 Async ffmpeg runner (NO BLOCKING)
+async def run_cmd(cmd: str):
+    process = await asyncio.create_subprocess_shell(
+        cmd,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+    await process.communicate()
+
+
+async def send_vid(
+    bot: Client,
+    m: Message,
+    cc,
+    filename,
+    vidwatermark,
+    thumb,
+    name,
+    prog,
+    channel_id
+):
+    # ==========================
+    # THUMBNAIL GENERATION
+    # ==========================
+    thumb_path = f"{filename}.jpg"
+    await run_cmd(
+        f'ffmpeg -y -i "{filename}" -ss 00:00:10 -vframes 1 "{thumb_path}"'
+    )
+
+    await prog.delete(True)
+
+    reply1 = await bot.send_message(
+        channel_id,
+        f"**📩 Uploading Video 📩:-**\n<blockquote>**{name}**</blockquote>"
+    )
+
+    reply = await m.reply_text(
+        f"**Generate Thumbnail:**\n<blockquote>**{name}**</blockquote>"
+    )
+
+    # ==========================
+    # THUMB SELECTION
+    # ==========================
+    thumbnail = thumb_path if thumb == "/d" else thumb
+
+    # ==========================
+    # WATERMARK PROCESS
+    # ==========================
+    if vidwatermark == "/d":
+        w_filename = filename
+    else:
+        w_filename = f"w_{os.path.basename(filename)}"
+        font_path = "vidwater.ttf"
+
+        await run_cmd(
+            f'ffmpeg -y -i "{filename}" -vf '
+            f'"drawtext=fontfile={font_path}:text=\'{vidwatermark}\':'
+            f'fontcolor=white@0.3:fontsize=h/6:'
+            f'x=(w-text_w)/2:y=(h-text_h)/2" '
+            f'-codec:a copy "{w_filename}"'
+        )
+
+    # ==========================
+    # SAFETY CHECK
+    # ==========================
+    if not os.path.exists(w_filename):
+        await m.reply_text("❌ Video processing failed")
+        return
 
     dur = int(duration(w_filename))
     start_time = time.time()
 
+    # ==========================
+    # UPLOAD (VIDEO → DOC FALLBACK)
+    # ==========================
     try:
-        await bot.send_video(channel_id, w_filename, caption=cc, supports_streaming=True, height=720, width=1280, thumb=thumbnail, duration=dur, progress=progress_bar, progress_args=(reply, start_time))
+        await bot.send_video(
+            chat_id=channel_id,
+            video=w_filename,
+            caption=cc,
+            supports_streaming=True,
+            height=720,
+            width=1280,
+            thumb=thumbnail,
+            duration=dur,
+            progress=progress_bar,
+            progress_args=(reply, start_time)
+        )
+    except Exception:
+        await bot.send_document(
+            chat_id=channel_id,
+            document=w_filename,
+            caption=cc,
+            progress=progress_bar,
+            progress_args=(reply, start_time)
+        )
+
+    # ==========================
+    # CLEANUP
+    # ==========================
+    
     except Exception:
         await bot.send_document(channel_id, w_filename, caption=cc, progress=progress_bar, progress_args=(reply, start_time))
     os.remove(w_filename)
