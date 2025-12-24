@@ -386,7 +386,18 @@ async def download_m3u8_async(url: str, filename: str):
 
         print(f"\n✅ Full video downloaded: {final_file}")
         return final_file
+# === FIX: sync wrapper for async m3u8 downloader ===
+ def download_m3u8(url, name):
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
 
+    if loop and loop.is_running():
+        return asyncio.create_task(download_m3u8_async(url, name))
+    else:
+        return asyncio.run(download_m3u8_async(url, name))
 # Run
 # asyncio.run(download_m3u8_async("your_m3u8_url", "video_name"))
 import os
